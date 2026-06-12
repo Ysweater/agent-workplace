@@ -56,10 +56,11 @@ export default function ModelSettings({ placement = 'header', locked = false }: 
   const [testMessage, setTestMessage] = useState<string | null>(null);
 
   const grouped = useMemo(() => groupByCapability(catalog), [catalog]);
-  const selectableChat = useMemo(
-    () => grouped.chat.filter((p) => p.status === 'ok'),
+  const chatPresets = useMemo(
+    () => grouped.chat,
     [grouped.chat],
   );
+  const configuredChatCount = chatPresets.filter((p) => p.configured).length;
   const mediaOk = useMemo(
     () => [...grouped.image, ...grouped.video].filter((p) => p.status === 'ok'),
     [grouped.image, grouped.video],
@@ -99,7 +100,21 @@ export default function ModelSettings({ placement = 'header', locked = false }: 
   const handleSelectPreset = async (presetId: string) => {
     const saved = await selectPreset(presetId);
     if (saved) {
-      setSavedMessage(`已切换至 ${saved.label ?? saved.model}`);
+      setSavedMessage(`已切换至 ${saved.label ?? saved.model}，下一次任务生效`);
+      window.setTimeout(() => setSavedMessage(null), 1800);
+    }
+  };
+
+  const handleSelectMock = async () => {
+    const saved = await save({
+      provider: 'mock',
+      model: 'mock',
+      baseUrl: '',
+      apiKey: '',
+      temperature: form.temperature ?? 0.2,
+    });
+    if (saved) {
+      setSavedMessage('已切换到 Mock 演示模式，下一次任务生效');
       window.setTimeout(() => setSavedMessage(null), 1800);
     }
   };
@@ -134,6 +149,7 @@ export default function ModelSettings({ placement = 'header', locked = false }: 
   };
 
   const displayLabel = models?.label ?? models?.model ?? 'mock';
+  const isMockActive = (models?.provider ?? 'mock') === 'mock' || !models?.configured;
 
   const triggerClass =
     placement === 'input'
@@ -152,7 +168,7 @@ export default function ModelSettings({ placement = 'header', locked = false }: 
       <button
         key={preset.id}
         type="button"
-        disabled={locked || saving || !selectable}
+        disabled={saving || !selectable}
         onClick={() => void handleSelectPreset(preset.id)}
         className={`w-full rounded-lg border px-3 py-2 text-left transition ${
           active
@@ -180,21 +196,27 @@ export default function ModelSettings({ placement = 'header', locked = false }: 
     <div className="relative shrink-0">
       <button
         type="button"
-        onClick={() => !locked && setOpen((v) => !v)}
-        disabled={locked}
-        title={locked ? '任务执行中，完成后可切换模型' : undefined}
-        className={`${triggerClass} ${locked ? 'cursor-not-allowed opacity-60' : ''}`}
+        onClick={() => setOpen((v) => !v)}
+        title={
+          locked
+            ? '当前任务使用启动时模型快照；现在切换会影响下一次任务'
+            : '切换模型配置'
+        }
+        className={`${triggerClass} ${locked ? 'ring-1 ring-amber-400/20' : ''}`}
       >
-        模型：{displayLabel}
+        <span className="inline-flex items-center gap-1.5">
+          <span className={`h-1.5 w-1.5 rounded-full ${isMockActive ? 'bg-slate-500' : 'bg-emerald-400'}`} />
+          模型：{displayLabel}
+        </span>
       </button>
 
       {open && (
         <div className={panelClass}>
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
-              <p className="font-medium text-slate-100">模型配置</p>
+              <p className="font-medium text-slate-100">模型切换</p>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                当前：{displayLabel}
+                当前配置：{displayLabel}
                 {models?.source === 'runtime' ? ' · 本次会话配置' : ' · 环境变量'}
               </p>
             </div>
@@ -207,15 +229,17 @@ export default function ModelSettings({ placement = 'header', locked = false }: 
             </button>
           </div>
 
-          {locked && (
-            <p className="mb-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
-              任务执行中，当前运行已锁定启动时的模型配置；完成后可切换。
+          <div className="mb-3 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-indigo-100">
+            <p className="font-medium text-indigo-100">Codex-style 运行规则</p>
+            <p className="mt-1 text-indigo-200/75">
+              每个 Agent Run 启动时会捕获模型快照。{locked ? '当前任务会继续使用启动时模型；' : ''}
+              这里的切换不会中断正在执行的任务，只影响下一次发送或断点续传。
             </p>
-          )}
+          </div>
 
           <div className="mb-3 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-slate-500">可用模型（已测试连通）</span>
+              <span className="text-slate-500">快捷切换</span>
               <button
                 type="button"
                 disabled={catalogLoading}
@@ -227,13 +251,37 @@ export default function ModelSettings({ placement = 'header', locked = false }: 
             </div>
 
             <div className="space-y-1.5">
-              <p className="text-[10px] uppercase tracking-wide text-slate-600">
-                {CAPABILITY_LABEL.chat}
-              </p>
-              {selectableChat.length > 0 ? (
-                selectableChat.map((p) => renderPresetButton(p, true))
+              <p className="text-[10px] uppercase tracking-wide text-slate-600">Agent Run 模型</p>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void handleSelectMock()}
+                className={`w-full rounded-lg border px-3 py-2 text-left transition ${
+                  isMockActive
+                    ? 'border-indigo-500/60 bg-indigo-500/15 text-indigo-100'
+                    : 'border-[var(--agnes-border-subtle)] text-slate-300 hover:border-indigo-500/40 hover:bg-white/[0.03]'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">Mock 演示模式</span>
+                  <span className="text-emerald-400">✓</span>
+                </div>
+                <p className="mt-0.5 text-[10px] text-slate-500">
+                  无需 API Key，可完整演示 Planner / Tool / Artifact / Loop
+                </p>
+              </button>
+
+              {chatPresets.length > 0 ? (
+                chatPresets.map((p) => renderPresetButton(p, p.configured && p.status !== 'error'))
               ) : (
-                <p className="text-[11px] text-slate-600">暂无可用对话模型，请检查 .env 中的 API Key</p>
+                <p className="rounded-lg border border-[var(--agnes-border-subtle)] px-3 py-2 text-[11px] text-slate-600">
+                  未加载到模型目录，可使用 Mock 或下方手动 Provider。
+                </p>
+              )}
+              {configuredChatCount === 0 && (
+                <p className="text-[11px] leading-relaxed text-slate-600">
+                  没有检测到可用对话模型 Key。可以继续用 Mock 演示，或展开下方高级配置临时填入 DeepSeek / OpenAI 兼容 API。
+                </p>
               )}
             </div>
 
@@ -347,7 +395,7 @@ export default function ModelSettings({ placement = 'header', locked = false }: 
               <div className="flex gap-2 pt-1">
                 <button
                   type="submit"
-                disabled={locked || saving || testing}
+                disabled={saving || testing}
                 className="flex-1 rounded-lg bg-indigo-600 px-3 py-2 font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50"
                 >
                   {saving ? '保存中' : '应用配置'}
@@ -357,8 +405,9 @@ export default function ModelSettings({ placement = 'header', locked = false }: 
                   disabled={saving || testing}
                   onClick={() => void handleTest()}
                   className="rounded-lg border border-indigo-500/40 px-3 py-2 text-indigo-200 transition hover:bg-indigo-500/10 disabled:opacity-50"
+                  title="只测试当前表单配置，不切换运行时模型"
                 >
-                  {testing ? '测试中' : '测试连接'}
+                  {testing ? '测试中' : '仅测试'}
                 </button>
                 <button
                   type="button"

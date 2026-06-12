@@ -203,6 +203,55 @@ function resolveRunConfig(snapshot?: ModelRunSnapshot): ModelRunSnapshot {
   };
 }
 
+function resolveInputSnapshot(input: RuntimeModelConfigInput): ModelRunSnapshot {
+  if (input.presetId) {
+    const preset = selectPresetConfig(input.presetId);
+    return {
+      provider: preset.provider as ModelProviderType,
+      model: preset.model,
+      baseUrl: preset.baseUrl,
+      apiKey: preset.apiKey,
+      temperature: readTemperature(),
+      source: 'runtime',
+      presetId: preset.presetId,
+      label: getPresetById(input.presetId)?.label,
+    };
+  }
+
+  const provider = input.provider ?? readProvider();
+  if (
+    provider !== 'mock' &&
+    provider !== 'agnes' &&
+    provider !== 'openai' &&
+    provider !== 'deepseek' &&
+    provider !== 'zenmux' &&
+    provider !== 'custom'
+  ) {
+    throw new Error('Unsupported MODEL_PROVIDER');
+  }
+
+  const presetBaseUrl =
+    provider in PROVIDER_BASE_URLS
+      ? PROVIDER_BASE_URLS[provider as keyof typeof PROVIDER_BASE_URLS]
+      : '';
+  const defaultModel =
+    provider in PROVIDER_DEFAULT_MODELS
+      ? PROVIDER_DEFAULT_MODELS[provider as keyof typeof PROVIDER_DEFAULT_MODELS]
+      : readModel();
+  const temperature = Number.isFinite(Number(input.temperature))
+    ? Math.min(Math.max(Number(input.temperature), 0), 2)
+    : readTemperature();
+
+  return {
+    provider,
+    model: input.model?.trim() || defaultModel,
+    baseUrl: input.baseUrl?.trim() || presetBaseUrl,
+    apiKey: input.apiKey?.trim() || (provider === 'mock' ? '' : readApiKeyForProvider(provider)),
+    temperature,
+    source: 'runtime',
+  };
+}
+
 /** Capture current model settings at task start */
 export function captureModelSnapshot(): ModelRunSnapshot {
   return resolveRunConfig();
@@ -749,11 +798,8 @@ export function resetRuntimeModelConfig(): PublicModelsInfo {
 export async function testModelConnection(
   input?: RuntimeModelConfigInput,
 ): Promise<ModelTestResult> {
-  if (input && Object.keys(input).length > 0) {
-    updateRuntimeModelConfig(input);
-  }
-
-  const info = getModelsInfo();
+  const snapshot = input && Object.keys(input).length > 0 ? resolveInputSnapshot(input) : undefined;
+  const info = snapshot ? getModelProviderService().getModelsInfo(snapshot) : getModelsInfo();
   const started = Date.now();
 
   if (info.usingMock) {
@@ -781,6 +827,7 @@ export async function testModelConnection(
         { role: 'user', content: 'ping' },
       ],
       { maxTokens: 16, temperature: 0 },
+      snapshot,
     );
 
     if (result.mocked) {
