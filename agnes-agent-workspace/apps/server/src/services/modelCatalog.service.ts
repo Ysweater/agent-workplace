@@ -6,7 +6,8 @@ import {
   type ModelCapability,
   type ModelPreset,
 } from '../config/modelCatalog.js';
-import { generateZenmuxChat, generateZenmuxImage, generateZenmuxVideo } from './zenmuxMedia.service.js';
+import { generateMediaImage, generateMediaVideo } from './mediaGeneration.service.js';
+import { generateZenmuxChat } from './zenmuxMedia.service.js';
 
 export interface CatalogEntry extends ModelPreset {
   configured: boolean;
@@ -26,7 +27,7 @@ async function testPresetConnectivity(
 
   if (preset.capability === 'image') {
     try {
-      const result = await generateZenmuxImage('A small red dot on white background', preset.model);
+      const result = await generateMediaImage('A small red dot on white background', preset.model);
       return {
         ok: Boolean(result.base64),
         message: `生图连通成功 (${Date.now() - started}ms)`,
@@ -39,7 +40,7 @@ async function testPresetConnectivity(
 
   if (preset.capability === 'video') {
     try {
-      const result = await generateZenmuxVideo(
+      const result = await generateMediaVideo(
         'A golden retriever running on the beach',
         preset.model,
         5_000,

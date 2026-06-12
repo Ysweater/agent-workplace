@@ -10,7 +10,7 @@ import {
 } from '../services/modelProvider.service.js';
 import { launchViteProject } from '../services/siteBuilder/siteBuilder.service.js';
 import { performWebSearch } from '../services/webSearch.service.js';
-import { generateZenmuxImage, generateZenmuxVideo } from '../services/zenmuxMedia.service.js';
+import { generateMediaImage, generateMediaVideo } from '../services/mediaGeneration.service.js';
 
 export const toolRegistry = new ToolRegistry();
 
@@ -78,8 +78,8 @@ export function createAgentRuntime(modelSnapshot?: ModelRunSnapshot): AgentRunti
           error: result.error,
         };
       },
-      generateImage: async (prompt, options) => generateZenmuxImage(prompt, options?.model),
-      generateVideo: async (prompt, options) => generateZenmuxVideo(prompt, options?.model),
+      generateImage: async (prompt, options) => generateMediaImage(prompt, options?.model),
+      generateVideo: async (prompt, options) => generateMediaVideo(prompt, options?.model),
       launchViteProject: async (requirement, output) => {
         const siteType = /游戏|吃豆|pacman|pac-man|小游戏|arcade|game/i.test(requirement)
           ? 'vite-game'

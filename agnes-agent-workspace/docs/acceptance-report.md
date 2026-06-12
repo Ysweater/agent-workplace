@@ -28,6 +28,18 @@
 | 模型切换行为 | 通过 | 实测结论：当前任务不会中断，也不会切换到新模型；任务启动时捕获 `ModelRunSnapshot`，后续 Planner/Tools 均使用该快照；新模型只影响下一次 run |
 | Loop Engineering | 通过 | `AgentLoop -> AgentRuntime -> Planner -> Executor -> ContextManager` 构成显式决策循环；`context.loopEvents` 与 `trace[type=loop_event]` 记录 perceive/route/plan/act/observe/reflect/persist/resume/stop |
 
+## Agnes 统一模型 Key
+
+当前模型目录支持同一个 `AGNES_API_KEY` 连接 Agnes 文本、图片和视频模型：
+
+- `agnes-1.5-flash`
+- `agnes-2.0-flash`
+- `agnes-image-2.0-flash`
+- `agnes-image-2.1-flash`
+- `agnes-video-v2.0`
+
+文本模型走 OpenAI 兼容 `/v1/chat/completions`；图片模型走 `/v1/images/generations`；视频模型走 `/v1/videos` 创建任务，并通过 `video_id` 查询结果。
+
 ## 模型切换实测结论
 
 测试步骤：

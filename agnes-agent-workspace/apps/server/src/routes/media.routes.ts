@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getPresetById } from '../config/modelCatalog.js';
 import { createHttpError } from '../middleware/errorHandler.js';
-import { generateZenmuxImage, generateZenmuxVideo } from '../services/zenmuxMedia.service.js';
+import { generateMediaImage, generateMediaVideo } from '../services/mediaGeneration.service.js';
 
 export const mediaRoutes = Router();
 
@@ -18,7 +18,7 @@ mediaRoutes.post('/image', async (req, res) => {
   }
 
   const presetModel = presetId ? getPresetById(presetId)?.model : undefined;
-  const result = await generateZenmuxImage(trimmed, model ?? presetModel ?? 'qwen/qwen-image-2.0');
+  const result = await generateMediaImage(trimmed, model ?? presetModel ?? 'agnes-image-2.1-flash');
   res.json({
     ok: true,
     mimeType: result.mimeType,
@@ -42,9 +42,9 @@ mediaRoutes.post('/video', async (req, res) => {
   }
 
   const presetModel = presetId ? getPresetById(presetId)?.model : undefined;
-  const result = await generateZenmuxVideo(
+  const result = await generateMediaVideo(
     trimmed,
-    model ?? presetModel ?? 'google/veo-3.1-fast-generate-001',
+    model ?? presetModel ?? 'agnes-video-v2.0',
   );
 
   res.json({

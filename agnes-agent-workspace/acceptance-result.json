@@ -1,10 +1,10 @@
 {
-  "startedAt": "2026-06-12T02:49:12.046Z",
-  "completedAt": "2026-06-12T02:49:13.154Z",
+  "startedAt": "2026-06-12T02:55:24.365Z",
+  "completedAt": "2026-06-12T02:55:25.451Z",
   "base": "http://localhost:3001",
   "health": {
     "status": "ok",
-    "uptime": 10.494624232,
+    "uptime": 13.665421436,
     "provider": "mock",
     "configured": false,
     "webSearch": {
@@ -20,14 +20,14 @@
     "storage": {
       "driver": "json",
       "fallback": false,
-      "detail": "JSON files at /tmp/agnes-model-ui-a106"
+      "detail": "JSON files at /tmp/agnes-catalog-a106"
     },
     "checkpoint": {
       "driver": "memory",
       "configured": false,
       "detail": "Using in-memory checkpoints; set REDIS_URL for cloud resume"
     },
-    "timestamp": "2026-06-12T02:49:12.075Z"
+    "timestamp": "2026-06-12T02:55:24.398Z"
   },
   "passed": true,
   "checks": [
@@ -84,12 +84,12 @@
     {
       "name": "model switch behavior is snapshot based",
       "ok": true,
-      "details": "snapshot={\"provider\":\"custom\",\"model\":\"before-switch-model\",\"baseUrl\":\"http://127.0.0.1:9/v1\",\"temperature\":0.2,\"configured\":true,\"source\":\"runtime\",\"capturedAt\":\"2026-06-12T02:49:12.856Z\"}"
+      "details": "snapshot={\"provider\":\"custom\",\"model\":\"before-switch-model\",\"baseUrl\":\"http://127.0.0.1:9/v1\",\"temperature\":0.2,\"configured\":true,\"source\":\"runtime\",\"capturedAt\":\"2026-06-12T02:55:25.176Z\"}"
     },
     {
       "name": "loop engineering checkpoint completed",
       "ok": true,
-      "details": "{\"runId\":\"16a65d34-6086-4992-af92-4c12d13b705e\",\"workflowName\":\"researchWorkflow\",\"completedNodeIds\":[\"step-1\",\"step-2\",\"step-3\",\"step-4\",\"step-5\"],\"pendingNodeIds\":[],\"status\":\"completed\",\"updatedAt\":\"2026-06-12T02:49:12.717Z\"}"
+      "details": "{\"runId\":\"83aafc91-8397-419b-869c-7e0644ac44fa\",\"workflowName\":\"researchWorkflow\",\"completedNodeIds\":[\"step-1\",\"step-2\",\"step-3\",\"step-4\",\"step-5\"],\"pendingNodeIds\":[],\"status\":\"completed\",\"updatedAt\":\"2026-06-12T02:55:25.044Z\"}"
     },
     {
       "name": "explicit CC-style loop stages are traced",
