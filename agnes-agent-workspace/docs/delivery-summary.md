@@ -9,12 +9,12 @@ Agnes Agent Workspace 是一个 Web Agent 工作台原型，不是单页建站 D
 | 功能 | 工作流 | 产物 |
 | --- | --- | --- |
 | 正常对话 | chat direct reply | 文本回答、会话记忆 |
-| 检索分析报告 | `prompt_enhancer -> web_search -> research_report -> html_export -> summary` | 优化调研 brief、Markdown 报告、HTML 预览、总结 |
+| 检索分析报告 | `prompt_enhancer -> web_search -> research_report -> html_export -> summary` | 语义拆解调研 brief、联网搜索 sources、固定五段式 Markdown 报告、HTML 预览、总结 |
 | 一键建站 | `prompt_enhancer -> website_builder -> summary` | 优化建站 brief、HTML 预览、文件清单、建站说明 |
 | PPT 生成 | `prompt_enhancer -> presentation_generator -> summary` | 优化演示 brief、slides JSON、Markdown 大纲、HTML deck 预览 |
 | 图片/视频 AIGC | `prompt_enhancer -> image_generator/video_generator -> summary` | 增强 prompt、媒体状态/媒体产物、总结 |
 
-生产型工作流不直接把用户原话传给生成模型。Planner 模板和归一化逻辑会强制先执行 `prompt_enhancer`，再把增强后的 `enhancedPrompt` 传给调研报告、建站、PPT、文档、图片或视频生成工具。
+生产型工作流不直接把用户原话传给生成模型。Planner 模板和归一化逻辑会强制先执行 `prompt_enhancer`。其中检索分析报告被硬约束为 research 链路，若模型误规划出 `website_builder` 等生成工具，会被替换回 `prompt_enhancer -> web_search -> research_report -> html_export -> summary`。
 
 ## CC 源码借鉴内容与个人理解
 

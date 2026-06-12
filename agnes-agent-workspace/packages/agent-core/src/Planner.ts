@@ -31,10 +31,10 @@ interface LlmPlanStep {
 const PLAN_TEMPLATES: Record<AgentTaskType, StepTemplate[]> = {
   research: [
     {
-      title: 'Optimize research prompt',
+      title: 'Semantic decomposition for research',
       toolName: 'prompt_enhancer',
-      reason: 'Expand the raw request into a structured research brief before report generation',
-      expectedOutput: 'Optimized research brief with scope, style, structure, and constraints',
+      reason: 'Decompose the raw topic into research scope, search query, structure, and factual constraints',
+      expectedOutput: 'Structured research brief with semantic decomposition and search intent',
     },
     {
       title: 'Search the web',
@@ -543,6 +543,10 @@ export function normalizePlanForTaskType(
   steps: AgentStep[],
   toolNames: Set<string>,
 ): AgentStep[] {
+  if (taskType === 'research') {
+    return normalizeResearchPlan(steps, toolNames);
+  }
+
   let normalizedSteps = ensurePromptEnhancement(taskType, steps, toolNames);
 
   if (['writing', 'analysis'].includes(taskType)) {
@@ -576,40 +580,36 @@ export function normalizePlanForTaskType(
     }
   }
 
-  if (taskType !== 'research') return normalizedSteps;
+  return normalizedSteps;
+}
 
-  const names = new Set(normalizedSteps.map((s) => s.toolName));
-  const next = [...normalizedSteps];
+function normalizeResearchPlan(steps: AgentStep[], toolNames: Set<string>): AgentStep[] {
+  const required = ['prompt_enhancer', 'web_search', 'research_report', 'html_export', 'summary'];
+  const hasRequired = required.every((toolName) =>
+    steps.some((step) => step.toolName === toolName),
+  );
+  const hasForeignGenerationTool = steps.some((step) =>
+    [
+      'website_builder',
+      'document_generator',
+      'presentation_generator',
+      'image_generator',
+      'video_generator',
+    ].includes(step.toolName),
+  );
 
-  if (!names.has('html_export') && toolNames.has('html_export')) {
-    next.push(
-      toStep(
-        {
-          title: 'Export HTML preview',
-          toolName: 'html_export',
-          reason: 'Produce an HTML preview of the research report',
-          expectedOutput: 'HTML artifact',
-        },
-        next.length,
-      ),
-    );
+  if (!hasRequired || hasForeignGenerationTool) {
+    return PLAN_TEMPLATES.research.filter((template) => toolNames.has(template.toolName)).map(toStep);
   }
 
-  if (!names.has('summary') && toolNames.has('summary')) {
-    next.push(
-      toStep(
-        {
-          title: 'Summarize conclusions',
-          toolName: 'summary',
-          reason: 'Condense key takeaways for the final result',
-          expectedOutput: 'Bullet-point summary',
-        },
-        next.length,
-      ),
-    );
+  const ordered: AgentStep[] = [];
+  for (const toolName of required) {
+    const step = steps.find((candidate) => candidate.toolName === toolName);
+    if (step) {
+      ordered.push({ ...step, id: `step-${ordered.length + 1}` });
+    }
   }
-
-  return next;
+  return ordered;
 }
 
 function ensurePromptEnhancement(

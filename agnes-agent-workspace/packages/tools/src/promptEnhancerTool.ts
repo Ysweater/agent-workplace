@@ -2,6 +2,31 @@ import type { AgentContext, ToolDefinition } from '@agnes/agent-core';
 import type { PromptEnhancerOutput } from './types.js';
 
 function fallbackPrompt(task: string, target: string): PromptEnhancerOutput {
+  if (target === 'research') {
+    const enhancedPrompt = [
+      `Research topic: ${task}`,
+      `Search query: ${task}`,
+      'Semantic decomposition:',
+      '- Background: clarify why this topic matters now and what product/industry context should be checked.',
+      '- Key questions: market/product trend, representative capabilities, engineering implications, risks, and validation signals.',
+      '- Evidence plan: use web_search sources first; cite source ids for factual claims; mark uncertain points explicitly.',
+      'Report format: fixed five-section Chinese Markdown report: 一、背景分析；二、核心发现；三、数据与事实；四、趋势分析；五、结论与建议；append 参考来源.',
+      'Style constraints: objective, source-grounded, demo-ready, concise, and aligned with Agnes Agent Workspace / Claude Code style loop explanation.',
+      'Do not call website or presentation generation tools for this research task.',
+    ].join('\n');
+
+    return {
+      originalPrompt: task,
+      enhancedPrompt,
+      target,
+      rationale: [
+        'Converted the raw topic into semantic decomposition before search.',
+        'Separated search intent, evidence plan, report format, and factual boundaries.',
+        'Prevents research tasks from being routed into website or presentation generation.',
+      ],
+    };
+  }
+
   if (target !== 'media') {
     const targetLabels: Record<string, string> = {
       research: 'research report',
@@ -86,6 +111,8 @@ export const promptEnhancerTool: ToolDefinition = {
               content:
                 target === 'media'
                   ? 'You are an AIGC prompt engineer. Rewrite the user request into a production-ready image/video generation prompt. Include subject, scene, style, composition, camera, lighting, quality constraints, and negative constraints. Output only the optimized prompt text.'
+                  : target === 'research'
+                    ? 'You are the semantic decomposition node for Agnes research workflow. Rewrite the raw research topic into a concise research brief. Include exactly these labels: Research topic, Search query, Semantic decomposition, Evidence plan, Report format, Style constraints. Do not mention website_builder, presentation_generator, or media generation. Output only the optimized brief text.'
                   : 'You are the prompt optimizer inside Agnes Agent Workspace. Rewrite the raw user request into a structured production brief before any generation tool runs. Include goal, audience, artifact structure, style constraints, factual boundaries, acceptance criteria, and preview requirements. Output only the optimized brief text.',
             },
             {

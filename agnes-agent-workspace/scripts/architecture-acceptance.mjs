@@ -117,8 +117,9 @@ async function main() {
       ['prompt_enhancer', 'web_search', 'research_report', 'html_export', 'summary'].every((name) =>
         toolNames(research).includes(name),
       ) &&
-        callByTool(research, 'research_report')?.input?.topic === enhancedPrompt(research) &&
-        callByTool(research, 'research_report')?.input?.topic !==
+        !toolNames(research).includes('website_builder') &&
+        callByTool(research, 'research_report')?.input?.researchBrief === enhancedPrompt(research) &&
+        callByTool(research, 'research_report')?.input?.topic ===
           '调研 2026 年国内 AI Agent 产品发展趋势' &&
         artifactTypes(research).includes('html'),
       toolNames(research).join(' -> '),

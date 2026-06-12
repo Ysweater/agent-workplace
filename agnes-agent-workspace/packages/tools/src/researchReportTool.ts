@@ -35,10 +35,15 @@ function cite(sources: Source[], ids: string[]): string {
   return valid.length ? valid.map((id) => `[${id}]`).join('') : '(source unavailable)';
 }
 
-function reportFromSources(topic: string, title: string, sources: Source[]): ResearchReportOutput {
+function reportFromSources(
+  topic: string,
+  title: string,
+  sources: Source[],
+  researchBrief = '',
+): ResearchReportOutput {
   const topSources = sources.slice(0, 5);
   const fallbackNotice = sources.some((s) => s.url.includes('agnes.local'))
-    ? '> Note: live search was unavailable, so this report uses explicit fallback context for demo continuity. Replace it with live search results before production use.\n\n'
+    ? '> 说明：当前环境未拿到真实联网检索结果，以下报告使用显式 fallback sources 维持工作流演示。生产环境应配置搜索 Key 后重新生成。\n\n'
     : '';
 
   const findings = topSources
@@ -49,36 +54,45 @@ function reportFromSources(topic: string, title: string, sources: Source[]): Res
     .map((s) => `- **${s.id}** - [${s.title}](${s.url})\n  ${s.snippet}`)
     .join('\n');
 
+  const briefSection = researchBrief
+    ? `\n**语义拆解摘要**：\n\n${researchBrief
+        .split('\n')
+        .slice(0, 8)
+        .map((line) => `> ${line}`)
+        .join('\n')}\n`
+    : '';
+
   const markdown = `# ${title}
 
-${fallbackNotice}## 执行摘要
+${fallbackNotice}## 一、背景分析
 
-围绕 **${topic}**，当前来源显示：相关 Agent 产品能力正在从单点问答转向可规划、可调用工具、可保存上下文和可预览产物的工作台形态。以下判断严格基于本次检索来源，未确认的信息会保留为风险或待验证项。
+围绕 **${topic}**，主 Agent 已先完成语义拆解，再通过 \`web_search\` 工具检索来源，最后由 \`research_report\` 生成固定格式分析报告。当前可用来源显示：Agent 产品能力正在从单点问答转向可规划、可调用工具、可保存上下文、可预览产物和可恢复执行的工作台形态。${cite(sources, ['S2'])}
+${briefSection}
+## 二、核心发现
 
-## 关键发现
+- 主 Agent 调度、工作流路由、工具调用和上下文记忆是 AI Agent 工作台区别于普通聊天框的核心能力。${cite(sources, ['S2'])}
+- 检索分析类任务需要把联网搜索做成 Tool，并让报告生成严格基于 sources，而不是直接依赖模型记忆。${cite(sources, ['S1'])}
+- 对评审和 Demo 来说，Trace、产物预览、checkpoint/resume 和提示词优化步骤比单纯最终文本更能体现工程完整度。${cite(sources, ['S3'])}
 
+## 三、数据与事实
+
+本次检索/降级来源给出的可核验事实如下：
 ${findings}
 
-## 产品与工程含义
+## 四、趋势分析
 
-- Agent 工作台需要同时覆盖路由、规划、工具执行、上下文记忆、Trace、产物预览和恢复能力。${cite(sources, ['S2'])}
-- 验收不应只看静态页面，而要能解释每一步工具为什么被调用、产物从哪里来、失败如何恢复。${cite(sources, ['S3'])}
-- 当实时检索不可用时，系统应显式标注降级，而不是把 fallback 伪装成真实来源。${cite(sources, ['S1'])}
+- 产品形态上，Agent 将从“问答页面”演进为“可执行任务工作台”，需要同时展示对话、步骤、工具、状态和产物。
+- 工程实现上，类似 Claude Code / LangGraph 的 Loop Engineering 会成为关键：感知上下文、路由、规划、执行、观察、反思、持久化和恢复。
+- 能力验收上，固定格式报告、来源引用和可观察工具链会比一次性长文本更可靠。
 
-## 建议路线
+## 五、结论与建议
 
-- 主 Agent 保持快速响应，长任务进入异步 workflow。
-- 每个节点写入 checkpoint，支持中断后恢复。
-- 会话记忆和工具记录进入数据库/云存储，避免刷新或重启后丢上下文。
-- 报告中明确区分真实检索、模型生成和降级 fallback。
+- 保持研究工作流固定为：\`prompt_enhancer -> web_search -> research_report -> html_export -> summary\`，避免误触发建站或 PPT 工具。
+- 将搜索结果、报告正文、HTML 预览和执行 Trace 一起保存，满足 CRUD 与可恢复执行的演示诉求。
+- 若要接近生产效果，应配置真实搜索 Provider，并把 PostgreSQL/Redis 打开用于云端持久化和断点恢复。
+- 风险与待验证：来源数量和时效性会直接影响结论可信度；若外部搜索 API 未配置，当前报告只能作为演示连续性的样例；涉及市场规模、政策、融资等高变动事实时，需要补充实时来源。
 
-## 风险与待验证
-
-- 来源数量和时效性会直接影响结论可信度。
-- 若外部搜索 API 未配置，当前报告只能作为演示连续性的样例。
-- 涉及市场规模、政策、融资等高变动事实时，需要补充实时来源。
-
-## 来源索引
+## 参考来源
 
 ${sourceIndex}
 
@@ -97,6 +111,10 @@ export const researchReportTool: ToolDefinition = {
     type: 'object',
     properties: {
       topic: { type: 'string', description: 'Report topic' },
+      researchBrief: {
+        type: 'string',
+        description: 'Semantic decomposition and optimized research brief from prompt_enhancer',
+      },
       sources: {
         type: 'array',
         description: 'Source list from web_search (id, title, url, snippet)',
@@ -106,6 +124,7 @@ export const researchReportTool: ToolDefinition = {
   },
   async execute(input, ctx: AgentContext, services?: ToolExecutionServices) {
     const topic = String(input.topic ?? ctx.task.userInput).trim();
+    const researchBrief = String(input.researchBrief ?? '').trim();
     if (!topic) {
       return { success: false, output: null, error: 'research_report requires a topic' };
     }
@@ -119,16 +138,16 @@ export const researchReportTool: ToolDefinition = {
       };
     }
 
-    const title = `${topic} Research Report`;
+    const title = `调研报告：${topic}`;
 
     if (services?.generateText) {
-      const llmReport = await buildReportWithModel(topic, title, sources, services);
+      const llmReport = await buildReportWithModel(topic, title, sources, services, researchBrief);
       if (llmReport) {
         return { success: true, output: llmReport };
       }
     }
 
-    return { success: true, output: reportFromSources(topic, title, sources) };
+    return { success: true, output: reportFromSources(topic, title, sources, researchBrief) };
   },
 };
 
@@ -137,6 +156,7 @@ async function buildReportWithModel(
   title: string,
   sources: Source[],
   services: ToolExecutionServices,
+  researchBrief = '',
 ): Promise<ResearchReportOutput | null> {
   if (!services.generateText) return null;
 
@@ -154,14 +174,41 @@ async function buildReportWithModel(
         },
         {
           role: 'user',
-          content: `Write a research report in Markdown.\n\nTopic: ${topic}\n\nSources:\n${sourcesBlock}\n\nOnly output the Markdown report body, starting with a # heading.`,
+          content: `Write a research report in Markdown.
+
+Topic: ${topic}
+
+Semantic decomposition / research brief:
+${researchBrief || '(not provided)'}
+
+Sources:
+${sourcesBlock}
+
+Required fixed headings:
+# ${title}
+## 一、背景分析
+## 二、核心发现
+## 三、数据与事实
+## 四、趋势分析
+## 五、结论与建议
+## 参考来源
+
+Only output the Markdown report body. Do not generate a website, slide deck, or code artifact.`,
         },
       ],
       { temperature: 0.3, maxTokens: 4000 },
     );
 
     const markdown = content.trim();
-    if (!markdown || !/^#\s+/m.test(markdown)) return null;
+    if (
+      !markdown ||
+      !/^#\s+/m.test(markdown) ||
+      !['## 一、背景分析', '## 二、核心发现', '## 三、数据与事实', '## 四、趋势分析', '## 五、结论与建议'].every(
+        (heading) => markdown.includes(heading),
+      )
+    ) {
+      return null;
+    }
 
     const heading = markdown.match(/^#\s+(.+)$/m)?.[1]?.trim();
     return {

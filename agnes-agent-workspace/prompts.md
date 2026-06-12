@@ -130,7 +130,7 @@ buildPlannerPrompt({
 | `summary` | 1–2 步 | `summary` |
 | fallback | 按复杂度 | 须可计划、可工具调用、可追踪 |
 
-`Planner.normalizePlanForTaskType` 会在真实模型漏掉 `prompt_enhancer` 时自动补齐，确保生产型工作流不会把用户原话直接交给生成工具。
+`Planner.normalizePlanForTaskType` 会在真实模型漏掉 `prompt_enhancer` 时自动补齐。`research` 更严格：如果模型把调研任务误规划成 `website_builder`、`presentation_generator` 等生成链路，系统会丢弃该计划并恢复固定 research 链路，避免调研请求弹出建站页面。
 
 ### 设计原因
 

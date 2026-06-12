@@ -16,7 +16,7 @@
 | --- | --- | --- |
 | 主 Agent 先快速回复用户，后台路由工作流 | 通过 | `POST /api/agent/run-async` 先返回 HTTP 202、`status=running`、`immediateReply`，初始 `toolCalls=[]`；随后轮询 run 完成 |
 | 正常对话 | 通过 | 普通问题进入直接 chat 响应，`context.finalResult.mode=chat`，不调用工具 |
-| 检索分析报告 | 通过 | 工具链：`prompt_enhancer -> web_search -> research_report -> html_export -> summary`；`research_report.input.topic` 使用增强后的 brief，产出 Markdown/HTML artifact |
+| 检索分析报告 | 通过 | 工具链固定为 `prompt_enhancer -> web_search -> research_report -> html_export -> summary`；`prompt_enhancer` 负责语义拆解，`research_report.input.researchBrief` 使用增强 brief，且验收确保不会混入 `website_builder` |
 | 一键建站 | 通过 | 工具链：`prompt_enhancer -> website_builder -> summary`；`website_builder.input.requirement` 使用增强后的建站 brief，产出 HTML preview artifact |
 | PPT 生成 | 通过 | 工具链：`prompt_enhancer -> presentation_generator -> summary`；`presentation_generator.input.task` 使用增强后的演示 brief，产出 slides/Markdown/HTML deck |
 | 图片 AIGC | 通过 | 工具链：`prompt_enhancer -> image_generator -> summary`；`image_generator.input.prompt` 等于增强后的 prompt，不等于用户原话 |

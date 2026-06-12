@@ -139,7 +139,11 @@ function buildToolInput(step: AgentStep, ctx: AgentContext): Record<string, unkn
   switch (step.toolName) {
     case 'web_search':
       return {
-        query: userInput,
+        query:
+          ctx.task.taskType === 'research' ? extractSearchQuery(optimizedTask, userInput) : userInput,
+        ...(ctx.task.taskType === 'research'
+          ? { researchBrief: optimizedTask, originalQuery: userInput }
+          : {}),
         maxResults: DEFAULT_MAX_RESULTS,
       };
 
@@ -147,7 +151,8 @@ function buildToolInput(step: AgentStep, ctx: AgentContext): Record<string, unkn
       const searchOutput = findOutputByTool(ctx, 'web_search');
       const sources = extractSources(searchOutput);
       return {
-        topic: optimizedTask,
+        topic: userInput,
+        researchBrief: optimizedTask,
         originalTopic: userInput,
         sources,
       };
@@ -270,6 +275,15 @@ function extractPrompt(output: unknown, fallback: string): string {
     }
   }
   return fallback;
+}
+
+function extractSearchQuery(brief: string, fallback: string): string {
+  const line = brief
+    .split('\n')
+    .map((part) => part.trim())
+    .find((part) => /^search query\s*:/i.test(part));
+  const query = line?.replace(/^search query\s*:\s*/i, '').trim();
+  return query || fallback;
 }
 
 function buildSummaryContext(ctx: AgentContext): string {

@@ -22,7 +22,7 @@ export interface PlannerPromptOptions {
 
 const TOOL_CHAIN_HINTS: Record<PlannerTaskType, string> = {
   research:
-    'research: web_search -> research_report -> html_export -> summary. Use sources before writing claims.',
+    'research: prompt_enhancer -> web_search -> research_report -> html_export -> summary. prompt_enhancer is semantic decomposition; web_search is the only online search tool; never use website_builder/document_generator/presentation_generator for research.',
   website:
     'website: website_builder -> summary. Generate preview/index.html and files for the artifact workspace.',
   writing:
@@ -93,7 +93,7 @@ ${registeredTools}
 
 规划规则：
 1. toolName 必须来自已注册工具列表。
-2. research 必须先获得 sources，再写报告。
+2. research 必须严格使用：prompt_enhancer → web_search → research_report → html_export → summary；不得使用 website_builder、document_generator、presentation_generator、image_generator、video_generator。
 3. website 至少包含 website_builder。
 4. presentation 优先使用 presentation_generator，而不是普通 document_generator。
 5. media 必须先使用 prompt_enhancer，再调用 image_generator 或 video_generator；如果用户同时要图片和视频，两个生成工具都要规划。
