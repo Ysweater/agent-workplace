@@ -1,0 +1,5 @@
+{
+  "scaffold_type": "game",
+  "source": "ai-site-builder/backend/agent/templates/game.py",
+  "generation_mode": "polished_template"
+}

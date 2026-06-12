@@ -1,0 +1,27 @@
+{
+  "name": "agnes-agent-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agnes Agent Workspace — Web-based Agent workbench",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "predev": "npm run build -w @agnes/agent-core && npm run build -w @agnes/prompts && npm run build -w @agnes/tools",
+    "dev": "concurrently -n server,web -c blue,green \"npm run dev -w @agnes/server\" \"npm run dev -w @agnes/web\"",
+    "dev:kill": "node scripts/kill-dev-ports.mjs",
+    "dev:clean": "npm run dev:kill && npm run dev",
+    "dev:server": "npm run dev -w @agnes/server",
+    "dev:web": "npm run dev -w @agnes/web",
+    "build": "npm run build -w @agnes/agent-core && npm run build -w @agnes/tools && npm run build -w @agnes/prompts && npm run build -w @agnes/server && npm run build -w @agnes/web",
+    "start": "npm run start -w @agnes/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

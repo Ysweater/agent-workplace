@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+storage/sessions/*.json
+storage/reports/*.json
+storage/tool_calls/*.json
+storage/conversations/*.json
+storage/generated-sites/
+storage-test/
+apps/server/storage/
+!storage/sessions/.gitkeep
+!storage/reports/.gitkeep
+!storage/tool_calls/.gitkeep
