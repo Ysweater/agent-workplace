@@ -14,7 +14,7 @@
     "dev:clean": "npm run dev:kill && npm run dev",
     "dev:server": "npm run dev -w @agnes/server",
     "dev:web": "npm run dev -w @agnes/web",
-    "build": "npm run build -w @agnes/agent-core && npm run build -w @agnes/tools && npm run build -w @agnes/prompts && npm run build -w @agnes/server && npm run build -w @agnes/web",
+    "build": "npm run build -w @agnes/agent-core && npm run build -w @agnes/prompts && npm run build -w @agnes/tools && npm run build -w @agnes/server && npm run build -w @agnes/web",
     "start": "npm run start -w @agnes/server"
   },
   "devDependencies": {

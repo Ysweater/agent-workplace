@@ -58,6 +58,7 @@ function enhancedPrompt(run) {
 async function main() {
   const checks = [];
   const startedAt = new Date().toISOString();
+  const sessionPrefix = process.env.ACCEPTANCE_SESSION_PREFIX ?? `acceptance-${Date.now()}`;
 
   const health = await json('GET', '/api/health');
   checks.push(assert('health endpoint', health.status === 200 && health.data.status === 'ok'));
@@ -67,7 +68,7 @@ async function main() {
   const asyncStart = await json('POST', '/api/agent/run-async', {
     userInput: '调研 2026 年国内 AI Agent 产品发展趋势',
     agentType: 'research',
-    sessionId: 'acceptance-async',
+    sessionId: `${sessionPrefix}-async`,
   });
   checks.push(
     assert(
@@ -92,7 +93,7 @@ async function main() {
 
   const chat = await json('POST', '/api/agent/run-async', {
     userInput: '你现在能做什么？',
-    sessionId: 'acceptance-chat',
+    sessionId: `${sessionPrefix}-chat`,
   });
   checks.push(
     assert(
@@ -108,7 +109,7 @@ async function main() {
   const research = await runSync(
     '调研 2026 年国内 AI Agent 产品发展趋势',
     'research',
-    'acceptance-research',
+    `${sessionPrefix}-research`,
   );
   checks.push(
     assert(
@@ -127,7 +128,7 @@ async function main() {
   const website = await runSync(
     '一键建站：生成一个有首屏、功能区和表单的品牌官网',
     'website',
-    'acceptance-website',
+    `${sessionPrefix}-website`,
   );
   checks.push(
     assert(
@@ -145,7 +146,7 @@ async function main() {
   const presentation = await runSync(
     '生成一份 Agnes Agent Workspace 项目汇报 PPT',
     'presentation',
-    'acceptance-ppt',
+    `${sessionPrefix}-ppt`,
   );
   checks.push(
     assert(
@@ -164,7 +165,7 @@ async function main() {
   const image = await runSync(
     '生成一张未来感 AI Agent 工作台海报',
     'media',
-    'acceptance-image',
+    `${sessionPrefix}-image`,
   );
   const imageCalls = calls(image);
   const imageEnhanced = imageCalls.find((call) => call.toolName === 'prompt_enhancer')?.output
@@ -186,7 +187,7 @@ async function main() {
   const video = await runSync(
     '生成一个 5 秒的未来感 AI Agent 工作台短视频',
     'media',
-    'acceptance-video',
+    `${sessionPrefix}-video`,
   );
   const videoCalls = calls(video);
   checks.push(
@@ -201,7 +202,7 @@ async function main() {
     ),
   );
 
-  const memorySession = 'acceptance-memory';
+  const memorySession = `${sessionPrefix}-memory`;
   await runSync('生成一个 B2B SaaS 官网', 'website', memorySession);
   const followUp = await runSync('基于刚才的主题，生成汇报 PPT', undefined, memorySession);
   const session = await json('GET', `/api/agent/sessions/${memorySession}`);
@@ -226,7 +227,7 @@ async function main() {
   const switchRun = await json('POST', '/api/agent/run-async', {
     userInput: '生成一个模型切换测试官网',
     agentType: 'website',
-    sessionId: 'acceptance-model-switch',
+    sessionId: `${sessionPrefix}-model-switch`,
   });
   await json('POST', '/api/models', { provider: 'mock', model: 'after-switch-model' });
   const switchFinal = await pollRun(switchRun.data.runId);

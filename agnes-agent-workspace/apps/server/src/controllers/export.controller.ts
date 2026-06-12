@@ -12,6 +12,7 @@ function emptyContext(): AgentContext {
       createdAt: new Date().toISOString(),
     },
     plan: null,
+    loopEvents: [],
     toolCalls: [],
     stepOutputs: {},
     stepTransitions: [],
