@@ -27,6 +27,7 @@
 | 路由策略清晰可解释 | 通过 | `workflowRouter.service.ts` 输出 `intent`、`workflowName`、`confidence`、`signals`、`reason` |
 | 模型切换行为 | 通过 | 实测结论：当前任务不会中断，也不会切换到新模型；任务启动时捕获 `ModelRunSnapshot`，后续 Planner/Tools 均使用该快照；新模型只影响下一次 run |
 | Loop Engineering | 通过 | `AgentLoop -> AgentRuntime -> Planner -> Executor -> ContextManager` 构成显式决策循环；`context.loopEvents` 与 `trace[type=loop_event]` 记录 perceive/route/plan/act/observe/reflect/persist/resume/stop |
+| MainAgent 架构元数据 | 通过 | API 响应包含 `agentArchitecture.workflow`、`agentArchitecture.context`、`agentArchitecture.promptOptimization`，前端可展示 workflow 与 loop 信息 |
 
 ## Agnes 统一模型 Key
 
@@ -39,6 +40,16 @@
 - `agnes-video-v2.0`
 
 文本模型走 OpenAI 兼容 `/v1/chat/completions`；图片模型走 `/v1/images/generations`；视频模型走 `/v1/videos` 创建任务，并通过 `video_id` 查询结果。
+
+## 自定义 OpenAI 兼容接口测试
+
+高级配置中的“自定义 OpenAI 兼容接口”测试方式：
+
+1. Provider 选择 `自定义 OpenAI 兼容接口`。
+2. 填写模型名、Base URL、API Key、temperature。
+3. 点击 `仅测试`。
+
+`仅测试` 只调用 `/api/models/test`，不会保存配置，也不会改变当前 session 模型；只有点击 `应用配置` 才会写入当前会话的 model preference。
 
 ## 模型切换实测结论
 
@@ -82,6 +93,8 @@
 | 技术点 | 代码位置 | 产品/架构类比 |
 | --- | --- | --- |
 | 主 Agent 快速回复 + 后台执行 | `apps/server/src/controllers/agent.controller.ts` | 类似 Codex 先给状态反馈，再继续执行任务 |
+| MainAgent 架构层 | `apps/server/src/agent/main-agent.ts`, `apps/server/src/agent/*` | 类似 Claude Code QueryEngine 入口和上下文准备层 |
+| Workflow 一等对象 | `apps/server/src/workflows/*.workflow.ts`, `apps/server/src/agent/workflow-registry.ts` | 类似 LangGraph / Claude Code 多工作流路由 |
 | Workflow 路由 | `apps/server/src/services/workflowRouter.service.ts` | 类似 Claude Code/Codex 的任务意图分流 |
 | Planner | `packages/agent-core/src/Planner.ts` | 类似 Claude Code QueryEngine 前的计划生成 |
 | Loop 执行 | `packages/agent-core/src/AgentLoop.ts`, `packages/agent-core/src/AgentRuntime.ts`, `packages/agent-core/src/Executor.ts` | 类似 ReAct 的 perceive-route-plan-act-observe-reflect-persist 升级版 |

@@ -125,6 +125,15 @@ async function main() {
       toolNames(research).join(' -> '),
     ),
   );
+  checks.push(
+    assert(
+      'main agent architecture metadata is exposed',
+      research.agentArchitecture?.workflow?.id === 'researchWorkflow' &&
+        research.agentArchitecture?.context?.workflow?.id === 'researchWorkflow' &&
+        research.agentArchitecture?.promptOptimization?.required === true,
+      JSON.stringify(research.agentArchitecture?.workflow),
+    ),
+  );
 
   const website = await runSync(
     '一键建站：生成一个有首屏、功能区和表单的品牌官网',

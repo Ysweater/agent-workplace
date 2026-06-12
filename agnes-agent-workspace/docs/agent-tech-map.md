@@ -6,6 +6,10 @@ This project does not copy Claude Code source code. It independently implements 
 
 | File | Agent technique | Similar product / architecture | How it is implemented here |
 | --- | --- | --- | --- |
+| `apps/server/src/agent/main-agent.ts` | Main Agent preparation | Claude Code QueryEngine entry / Codex task controller | Loads memory, routes workflow, composes context, captures model snapshot, and prepares prompt optimization metadata before runtime execution. |
+| `apps/server/src/agent/context-composer.ts` | Context composition | Claude Code context packing | Builds current goal, recent turns, session summary, relevant artifacts, last workflow, model snapshot, and constraints without blindly dumping full history. |
+| `apps/server/src/agent/workflow-registry.ts` | Workflow registry | LangGraph graph registry / Claude Code sub-agent routing | Registers workflow definitions for chat, research, website, PPT, media, writing, and analysis. |
+| `apps/server/src/workflows/*.workflow.ts` | First-class workflows | LangGraph nodes / product workflow specs | Each workflow declares steps, required tools, artifact types, resume policy, and prompt optimization policy. |
 | `packages/agent-core/src/AgentLoop.ts` | Explicit loop recorder | Claude Code QueryEngine loop / Ralph Loop / LangGraph state events | Records perceive, route, plan, act, observe, reflect, persist, resume, and stop events into `context.loopEvents` and `trace[type="loop_event"]`. |
 | `packages/agent-core/src/AgentRuntime.ts` | Main agent orchestration, run entry, loop checkpoint | Claude Code QueryEngine / LangGraph graph runner | Converts user input into a task, receives route and model snapshots, creates a plan, drives the executor, and records loop state. |
 | `packages/agent-core/src/Planner.ts` | Intent classification, tool-chain planning, fallback plan | Claude Code planner / LangGraph conditional edge | Builds plans for research, website, presentation, media, writing, analysis, and summary tasks. |
@@ -26,6 +30,7 @@ This project does not copy Claude Code source code. It independently implements 
 | `apps/web/src/pages/WorkspacePage.tsx` | Codex-style workspace layout | Codex Web / Claude Artifacts | Left task list, center execution area, right artifact workspace with resize and hide controls. |
 | `apps/web/src/components/ArtifactWorkspace.tsx` | Artifact workspace | Claude Artifacts / Codex preview pane | Supports Preview, Markdown, Files, and Trace views. |
 | `apps/web/src/components/ExecutionDetails.tsx` | Observable trace | Claude Code execution trace | Shows plan, tool calls, inputs, outputs, and event stream for demo explanation. |
+| `apps/web/src/components/ArtifactWorkspace.tsx` | Loop Timeline | Claude Code transcript / Codex run timeline | Renders CC-style Loop Timeline with Perceive, Route, Prompt Optimize, Plan, Act, Observe, Reflect, Persist, and Stop nodes. |
 
 ## Loop Engineering
 

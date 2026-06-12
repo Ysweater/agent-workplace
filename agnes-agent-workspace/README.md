@@ -276,6 +276,8 @@ DATABASE_URL=postgresql://user:password@127.0.0.1:5432/agnes
 | 架构文档 | [architecture.md](./architecture.md) |
 | AI Agent 技术标注 | [docs/agent-tech-map.md](./docs/agent-tech-map.md) |
 | CC Loop 深入分析 | [docs/cc-loop-analysis.md](./docs/cc-loop-analysis.md) |
+| Agent Loop 架构 | [docs/agent-loop.md](./docs/agent-loop.md) |
+| Workflow Registry | [docs/workflows.md](./docs/workflows.md) |
 | 提示词文档 | [prompts.md](./prompts.md) |
 | 演示脚本 | [demo-script.md](./demo-script.md) |
 | 环境模板 | [.env.example](./.env.example) |

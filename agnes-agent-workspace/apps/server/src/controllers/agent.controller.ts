@@ -1,5 +1,7 @@
 import type { AgentContext, AgentTaskType } from '@agnes/agent-core';
 import type { Request, Response } from 'express';
+import { prepareMainAgentRun } from '../agent/main-agent.js';
+import { presentAgentRun } from '../agent/presenter.js';
 import { createAgentRuntime } from '../lib/agentSetup.js';
 import { toAgentRunResponse } from '../lib/agentResponse.js';
 import { createHttpError } from '../middleware/errorHandler.js';
@@ -50,7 +52,13 @@ export async function runAgent(req: Request, res: Response): Promise<void> {
 
   const id = runId ?? crypto.randomUUID();
   const conversationSessionId = sessionId?.trim() || id;
-  const conversationHistory = await loadConversationWithStorageFallback(conversationSessionId);
+  const taskTypeHint = agentType ? TASK_TYPE_HINTS[agentType] : undefined;
+  const prepared = await prepareMainAgentRun({
+    userInput: trimmed,
+    sessionId: conversationSessionId,
+    explicitType: taskTypeHint,
+  });
+  const conversationHistory = prepared.memory.recentTurns;
 
   if (!agentType && isConversationalInput(trimmed)) {
     const response = await runConversationalReply(trimmed, id, conversationHistory, conversationSessionId);
@@ -60,9 +68,8 @@ export async function runAgent(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const taskTypeHint = agentType ? TASK_TYPE_HINTS[agentType] : undefined;
-  const routeDecision = routeAgentTask(trimmed, taskTypeHint, conversationHistory);
-  const modelSnapshot = await captureSessionModelSnapshot(conversationSessionId);
+  const routeDecision = prepared.routeDecision;
+  const modelSnapshot = prepared.modelSnapshot;
   const runtime = createAgentRuntime(modelSnapshot);
 
   const result = await runtime.run(trimmed, {
@@ -74,11 +81,13 @@ export async function runAgent(req: Request, res: Response): Promise<void> {
     modelSnapshot: toPublicModelSnapshot(modelSnapshot),
   });
 
-  const response = {
-    ...toAgentRunResponse(result),
+  const response = presentAgentRun(result, {
+    workflow: prepared.workflow,
+    composedContext: prepared.composedContext,
+    promptOptimization: prepared.promptOptimization,
+    immediateReply: prepared.immediateReply,
     sessionId: conversationSessionId,
-    immediateReply: buildImmediateAgentReply(routeDecision),
-  };
+  });
 
   await persistConversation(conversationSessionId, trimmed, response, id);
   await storageService.saveSession(id, response);
@@ -101,7 +110,13 @@ export async function runAgentAsync(req: Request, res: Response): Promise<void> 
 
   const id = runId ?? crypto.randomUUID();
   const conversationSessionId = sessionId?.trim() || id;
-  const conversationHistory = await loadConversationWithStorageFallback(conversationSessionId);
+  const taskTypeHint = agentType ? TASK_TYPE_HINTS[agentType] : undefined;
+  const prepared = await prepareMainAgentRun({
+    userInput: trimmed,
+    sessionId: conversationSessionId,
+    explicitType: taskTypeHint,
+  });
+  const conversationHistory = prepared.memory.recentTurns;
 
   if (!agentType && isConversationalInput(trimmed)) {
     const response = await runConversationalReply(trimmed, id, conversationHistory, conversationSessionId);
@@ -116,11 +131,10 @@ export async function runAgentAsync(req: Request, res: Response): Promise<void> 
     return;
   }
 
-  const taskTypeHint = agentType ? TASK_TYPE_HINTS[agentType] : undefined;
-  const routeDecision = routeAgentTask(trimmed, taskTypeHint, conversationHistory);
-  const modelSnapshot = await captureSessionModelSnapshot(conversationSessionId);
+  const routeDecision = prepared.routeDecision;
+  const modelSnapshot = prepared.modelSnapshot;
   const createdAt = new Date().toISOString();
-  const immediateReply = buildImmediateAgentReply(routeDecision);
+  const immediateReply = prepared.immediateReply;
 
   const initialResponse = {
     runId: id,
@@ -146,6 +160,9 @@ export async function runAgentAsync(req: Request, res: Response): Promise<void> 
     sessionId: conversationSessionId,
     context: {
       routeDecision,
+      composedContext: prepared.composedContext,
+      workflow: prepared.workflow,
+      promptOptimization: prepared.promptOptimization,
       sessionId: conversationSessionId,
       conversationHistory,
       modelSnapshot: toPublicModelSnapshot(modelSnapshot),
@@ -186,6 +203,10 @@ export async function runAgentAsync(req: Request, res: Response): Promise<void> 
     modelSnapshot,
     conversationSessionId,
     conversationHistory,
+    prepared.workflow,
+    prepared.composedContext,
+    prepared.promptOptimization,
+    prepared.immediateReply,
   ).catch(async (err) => {
     const message = err instanceof Error ? err.message : 'Async run failed';
     const failedAt = new Date().toISOString();
@@ -226,6 +247,10 @@ async function executeAsyncRun(
   modelSnapshot: ModelRunSnapshot,
   sessionId: string,
   conversationHistory: Awaited<ReturnType<typeof loadConversation>>,
+  workflow: Awaited<ReturnType<typeof prepareMainAgentRun>>['workflow'],
+  composedContext: Awaited<ReturnType<typeof prepareMainAgentRun>>['composedContext'],
+  promptOptimization: Awaited<ReturnType<typeof prepareMainAgentRun>>['promptOptimization'],
+  immediateReply: string,
 ) {
   const runtime = createAgentRuntime(modelSnapshot);
   const result = await runtime.run(userInput, {
@@ -236,11 +261,13 @@ async function executeAsyncRun(
     routeDecision,
     modelSnapshot: toPublicModelSnapshot(modelSnapshot),
   });
-  const response = {
-    ...toAgentRunResponse(result),
+  const response = presentAgentRun(result, {
+    workflow,
+    composedContext,
+    promptOptimization,
+    immediateReply,
     sessionId,
-    immediateReply: buildImmediateAgentReply(routeDecision),
-  };
+  });
   await persistConversation(sessionId, userInput, response, runId);
   const checkpoint = result.context.loopCheckpoint;
   await saveRunCheckpoint({

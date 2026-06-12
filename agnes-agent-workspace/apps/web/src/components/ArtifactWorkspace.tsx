@@ -11,6 +11,14 @@ import { downloadTextFile, slugifyFilename } from '../utils/preview';
 
 type WorkspaceTab = 'preview' | 'report' | 'summary' | 'files' | 'tools';
 
+interface LoopTimelineNode {
+  id: string;
+  label: string;
+  status: string;
+  timestamp?: string;
+  detail?: string;
+}
+
 interface ArtifactWorkspaceProps {
   artifacts: Artifact[];
   websiteOutput?: unknown;
@@ -38,6 +46,100 @@ function pickDefaultTab(
 
 function isSummaryArtifact(artifact: Artifact): boolean {
   return artifact.type === 'markdown' && /执行总结|Execution Summary/i.test(artifact.title + artifact.content);
+}
+
+function formatLoopStage(stage: string): string {
+  const labels: Record<string, string> = {
+    perceive: 'Perceive',
+    route: 'Route',
+    plan: 'Plan',
+    act: 'Act',
+    observe: 'Observe',
+    reflect: 'Reflect',
+    persist: 'Persist',
+    resume: 'Resume',
+    stop: 'Stop',
+  };
+  return labels[stage] ?? stage;
+}
+
+function buildLoopTimeline(trace: TraceEvent[] = [], toolCalls: ToolCallRecord[] = []): LoopTimelineNode[] {
+  const nodes: LoopTimelineNode[] = [];
+  for (const event of trace) {
+    if (event.type !== 'loop_event') continue;
+    const loop = event.data.loop as
+      | { id?: string; stage?: string; status?: string; message?: string; timestamp?: string }
+      | undefined;
+    if (!loop?.stage) continue;
+    nodes.push({
+      id: loop.id ?? event.id,
+      label: formatLoopStage(loop.stage),
+      status: loop.status ?? 'completed',
+      timestamp: loop.timestamp ?? event.timestamp,
+      detail: loop.message,
+    });
+  }
+
+  for (const call of toolCalls) {
+    if (call.toolName !== 'prompt_enhancer') continue;
+    nodes.push({
+      id: `prompt-optimize-${call.id}`,
+      label: 'Prompt Optimize',
+      status: call.success ? 'completed' : call.error ? 'failed' : 'running',
+      timestamp: call.startedAt,
+      detail: '生产型 workflow 前置提示词扩写、结构化和约束优化',
+    });
+  }
+
+  return nodes.sort(
+    (a, b) => new Date(a.timestamp ?? 0).getTime() - new Date(b.timestamp ?? 0).getTime(),
+  );
+}
+
+function LoopTimeline({ trace, toolCalls }: { trace?: TraceEvent[]; toolCalls: ToolCallRecord[] }) {
+  const nodes = buildLoopTimeline(trace, toolCalls);
+  if (nodes.length === 0) return null;
+
+  return (
+    <div className="mb-4 rounded-lg border border-[var(--agnes-border-subtle)] bg-black/20 px-3 py-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+          CC-style Loop Timeline
+        </p>
+        <span className="text-[10px] text-slate-600">{nodes.length} nodes</span>
+      </div>
+      <ol className="space-y-2">
+        {nodes.map((node, index) => (
+          <li key={`${node.id}-${index}`} className="flex gap-2">
+            <span
+              className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
+                node.status === 'failed'
+                  ? 'bg-red-400'
+                  : node.status === 'started' || node.status === 'running'
+                    ? 'bg-amber-300'
+                    : 'bg-emerald-400'
+              }`}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-medium text-slate-300">{node.label}</p>
+                {node.timestamp && (
+                  <span className="text-[10px] text-slate-600">
+                    {new Date(node.timestamp).toLocaleTimeString()}
+                  </span>
+                )}
+              </div>
+              {node.detail && (
+                <p className="mt-0.5 line-clamp-2 text-[10px] leading-relaxed text-slate-500">
+                  {node.detail}
+                </p>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
 }
 
 function ArtifactTextActions({ artifact }: { artifact: Artifact }) {
@@ -334,6 +436,8 @@ export default function ArtifactWorkspace({
                 </div>
               </div>
             )}
+
+            <LoopTimeline trace={trace} toolCalls={toolCalls} />
 
             <ExecutionDetails toolCalls={toolCalls} defaultOpen={toolCalls.length <= 3} compact />
 

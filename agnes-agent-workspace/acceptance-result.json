@@ -1,10 +1,10 @@
 {
-  "startedAt": "2026-06-12T03:07:12.433Z",
-  "completedAt": "2026-06-12T03:07:13.496Z",
+  "startedAt": "2026-06-12T03:50:07.963Z",
+  "completedAt": "2026-06-12T03:50:08.916Z",
   "base": "http://localhost:3001",
   "health": {
     "status": "ok",
-    "uptime": 16.608199869,
+    "uptime": 103.244594757,
     "provider": "mock",
     "configured": false,
     "webSearch": {
@@ -20,14 +20,14 @@
     "storage": {
       "driver": "json",
       "fallback": false,
-      "detail": "JSON files at /tmp/agnes-session-model-a106"
+      "detail": "JSON files at /tmp/agnes-cc-arch-a106"
     },
     "checkpoint": {
       "driver": "memory",
       "configured": false,
       "detail": "Using in-memory checkpoints; set REDIS_URL for cloud resume"
     },
-    "timestamp": "2026-06-12T03:07:12.462Z"
+    "timestamp": "2026-06-12T03:50:08.001Z"
   },
   "passed": true,
   "checks": [
@@ -57,6 +57,11 @@
       "details": "prompt_enhancer -> web_search -> research_report -> html_export -> summary"
     },
     {
+      "name": "main agent architecture metadata is exposed",
+      "ok": true,
+      "details": "{\"id\":\"researchWorkflow\",\"name\":\"检索分析报告\",\"intent\":\"research\",\"steps\":[\"prompt_optimize\",\"web_search\",\"research_report\",\"html_preview\",\"summary\"],\"requiredTools\":[\"prompt_enhancer\",\"web_search\",\"research_report\",\"html_export\",\"summary\"],\"artifactTypes\":[\"markdown\",\"html\",\"text\"],\"resumePolicy\":{\"skipCompleted\":true,\"retryFailed\":true,\"pendingCanUseNewModel\":true},\"promptOptimizePolicy\":{\"required\":true,\"toolName\":\"prompt_enhancer\",\"target\":\"research\",\"description\":\"先做语义拆解与搜索意图优化，再调用联网搜索和报告生成。\"}}"
+    },
+    {
       "name": "one-click website workflow",
       "ok": true,
       "details": "prompt_enhancer -> website_builder -> summary"
@@ -84,12 +89,12 @@
     {
       "name": "model switch behavior is snapshot based",
       "ok": true,
-      "details": "snapshot={\"provider\":\"custom\",\"model\":\"before-switch-model\",\"baseUrl\":\"http://127.0.0.1:9/v1\",\"temperature\":0.2,\"configured\":true,\"source\":\"runtime\",\"capturedAt\":\"2026-06-12T03:07:13.221Z\"}"
+      "details": "snapshot={\"provider\":\"custom\",\"model\":\"before-switch-model\",\"baseUrl\":\"http://127.0.0.1:9/v1\",\"temperature\":0.2,\"configured\":true,\"source\":\"runtime\",\"capturedAt\":\"2026-06-12T03:50:08.655Z\"}"
     },
     {
       "name": "loop engineering checkpoint completed",
       "ok": true,
-      "details": "{\"runId\":\"a0609481-8899-49b3-ab74-161eb123d7b4\",\"workflowName\":\"researchWorkflow\",\"completedNodeIds\":[\"step-1\",\"step-2\",\"step-3\",\"step-4\",\"step-5\"],\"pendingNodeIds\":[],\"status\":\"completed\",\"updatedAt\":\"2026-06-12T03:07:13.111Z\"}"
+      "details": "{\"runId\":\"0b69d4a3-d8ca-4b76-b0f9-0bcc282ae517\",\"workflowName\":\"researchWorkflow\",\"completedNodeIds\":[\"step-1\",\"step-2\",\"step-3\",\"step-4\",\"step-5\"],\"pendingNodeIds\":[],\"status\":\"completed\",\"updatedAt\":\"2026-06-12T03:50:08.424Z\"}"
     },
     {
       "name": "explicit CC-style loop stages are traced",
