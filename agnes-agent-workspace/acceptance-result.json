@@ -1,10 +1,10 @@
 {
-  "startedAt": "2026-06-12T02:55:24.365Z",
-  "completedAt": "2026-06-12T02:55:25.451Z",
+  "startedAt": "2026-06-12T03:07:12.433Z",
+  "completedAt": "2026-06-12T03:07:13.496Z",
   "base": "http://localhost:3001",
   "health": {
     "status": "ok",
-    "uptime": 13.665421436,
+    "uptime": 16.608199869,
     "provider": "mock",
     "configured": false,
     "webSearch": {
@@ -20,14 +20,14 @@
     "storage": {
       "driver": "json",
       "fallback": false,
-      "detail": "JSON files at /tmp/agnes-catalog-a106"
+      "detail": "JSON files at /tmp/agnes-session-model-a106"
     },
     "checkpoint": {
       "driver": "memory",
       "configured": false,
       "detail": "Using in-memory checkpoints; set REDIS_URL for cloud resume"
     },
-    "timestamp": "2026-06-12T02:55:24.398Z"
+    "timestamp": "2026-06-12T03:07:12.462Z"
   },
   "passed": true,
   "checks": [
@@ -84,12 +84,12 @@
     {
       "name": "model switch behavior is snapshot based",
       "ok": true,
-      "details": "snapshot={\"provider\":\"custom\",\"model\":\"before-switch-model\",\"baseUrl\":\"http://127.0.0.1:9/v1\",\"temperature\":0.2,\"configured\":true,\"source\":\"runtime\",\"capturedAt\":\"2026-06-12T02:55:25.176Z\"}"
+      "details": "snapshot={\"provider\":\"custom\",\"model\":\"before-switch-model\",\"baseUrl\":\"http://127.0.0.1:9/v1\",\"temperature\":0.2,\"configured\":true,\"source\":\"runtime\",\"capturedAt\":\"2026-06-12T03:07:13.221Z\"}"
     },
     {
       "name": "loop engineering checkpoint completed",
       "ok": true,
-      "details": "{\"runId\":\"83aafc91-8397-419b-869c-7e0644ac44fa\",\"workflowName\":\"researchWorkflow\",\"completedNodeIds\":[\"step-1\",\"step-2\",\"step-3\",\"step-4\",\"step-5\"],\"pendingNodeIds\":[],\"status\":\"completed\",\"updatedAt\":\"2026-06-12T02:55:25.044Z\"}"
+      "details": "{\"runId\":\"a0609481-8899-49b3-ab74-161eb123d7b4\",\"workflowName\":\"researchWorkflow\",\"completedNodeIds\":[\"step-1\",\"step-2\",\"step-3\",\"step-4\",\"step-5\"],\"pendingNodeIds\":[],\"status\":\"completed\",\"updatedAt\":\"2026-06-12T03:07:13.111Z\"}"
     },
     {
       "name": "explicit CC-style loop stages are traced",

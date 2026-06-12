@@ -2,6 +2,7 @@ import type { ToolCallRecord } from '@agnes/agent-core';
 import pg from 'pg';
 import type {
   ConversationTurnRecord,
+  ModelPreferenceRecord,
   ReportListItem,
   SavedReport,
   SessionListItem,
@@ -191,14 +192,25 @@ export class PostgresStorage implements StorageAdapter {
 
   async deleteSession(sessionId: string): Promise<boolean> {
     await this.ensureReady();
-    const result = await this.pool.query(
-      `DELETE FROM sessions
-       WHERE id = $1
-          OR payload->>'sessionId' = $1
-          OR payload->'context'->>'sessionId' = $1`,
-      [sessionId],
-    );
-    return (result.rowCount ?? 0) > 0;
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM model_preferences WHERE session_id = $1', [sessionId]);
+      const result = await client.query(
+        `DELETE FROM sessions
+         WHERE id = $1
+            OR payload->>'sessionId' = $1
+            OR payload->'context'->>'sessionId' = $1`,
+        [sessionId],
+      );
+      await client.query('COMMIT');
+      return (result.rowCount ?? 0) > 0;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   async loadConversation(sessionId: string): Promise<ConversationTurnRecord[]> {
@@ -227,6 +239,42 @@ export class PostgresStorage implements StorageAdapter {
   async deleteConversation(sessionId: string): Promise<void> {
     await this.ensureReady();
     await this.pool.query('DELETE FROM conversations WHERE session_id = $1', [sessionId]);
+  }
+
+  async loadModelPreference(sessionId: string): Promise<ModelPreferenceRecord | null> {
+    await this.ensureReady();
+    const result = await this.pool.query(
+      'SELECT preference, updated_at FROM model_preferences WHERE session_id = $1',
+      [sessionId],
+    );
+    if (result.rowCount === 0) return null;
+    const preference = result.rows[0].preference as Partial<ModelPreferenceRecord>;
+    return {
+      ...preference,
+      sessionId,
+      updatedAt: new Date(result.rows[0].updated_at as string).toISOString(),
+    };
+  }
+
+  async saveModelPreference(
+    sessionId: string,
+    preference: ModelPreferenceRecord,
+  ): Promise<void> {
+    await this.ensureReady();
+    const payload = JSON.parse(JSON.stringify({ ...preference, sessionId })) as unknown;
+    await this.pool.query(
+      `INSERT INTO model_preferences (session_id, preference, updated_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (session_id) DO UPDATE SET
+         preference = EXCLUDED.preference,
+         updated_at = NOW()`,
+      [sessionId, payload],
+    );
+  }
+
+  async deleteModelPreference(sessionId: string): Promise<void> {
+    await this.ensureReady();
+    await this.pool.query('DELETE FROM model_preferences WHERE session_id = $1', [sessionId]);
   }
 
   async listToolCalls(sessionId: string): Promise<ToolCallRecord[]> {

@@ -33,6 +33,18 @@ export interface SavedReport {
   updatedAt: string;
 }
 
+export interface ModelPreferenceRecord {
+  sessionId: string;
+  provider?: string;
+  baseUrl?: string;
+  model?: string;
+  temperature?: number;
+  presetId?: string;
+  label?: string;
+  apiKey?: string;
+  updatedAt: string;
+}
+
 export type StorageDriver = 'json' | 'postgres';
 
 export interface StorageStatus {
@@ -51,6 +63,9 @@ export interface StorageAdapter {
   loadConversation(sessionId: string): Promise<ConversationTurnRecord[]>;
   saveConversation(sessionId: string, turns: ConversationTurnRecord[]): Promise<void>;
   deleteConversation(sessionId: string): Promise<void>;
+  loadModelPreference(sessionId: string): Promise<ModelPreferenceRecord | null>;
+  saveModelPreference(sessionId: string, preference: ModelPreferenceRecord): Promise<void>;
+  deleteModelPreference(sessionId: string): Promise<void>;
   listToolCalls(sessionId: string): Promise<ToolCallRecord[]>;
   saveReport(report: SavedReport): Promise<SavedReport>;
   loadReport(reportId: string): Promise<SavedReport | null>;

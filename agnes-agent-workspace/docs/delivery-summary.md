@@ -41,6 +41,7 @@ Agnes Agent Workspace 是一个 Web Agent 工作台原型，不是单页建站 D
 | `packages/agent-core/src/ContextManager.ts` | Context | 保存 task、plan、toolCalls、artifacts、trace、checkpoint |
 | `apps/server/src/controllers/agent.controller.ts` | 后台任务执行 | `/run-async` 先返回，再后台执行 workflow |
 | `apps/server/src/services/modelProvider.service.ts` | 模型与运行配置边界 | 每个 run 捕获模型快照，避免执行中漂移 |
+| `apps/server/src/services/sessionModelPreference.service.ts` | Session settings | 持久化每个会话的模型偏好，历史会话恢复后继续使用该模型 |
 | `apps/server/src/services/storage/*` | 持久化与降级 | JSON/PostgreSQL 适配器，统一保存会话、记忆、报告、工具调用 |
 
 ## Codex 交互借鉴
@@ -49,6 +50,7 @@ Agnes Agent Workspace 是一个 Web Agent 工作台原型，不是单页建站 D
 - 任务开始先快速回应，让用户知道系统已接收并路由。
 - 中间区域展示会话与 run 卡片，右侧展示产物和工具细节。
 - 模型设置靠近输入区，但每个 run 固定快照，保证可复现。
+- 模型偏好跟随 session 保存；重新打开历史会话后，后续任务继续使用该会话模型。
 - 历史会话可以恢复，不把每次任务割裂成孤立页面。
 
 ## Hardness 工程组织借鉴

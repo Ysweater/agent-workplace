@@ -23,6 +23,7 @@ interface AgentMainViewProps {
   plan: AgentPlan | null;
   error: string | null;
   localPreview?: LocalPreviewOffer | null;
+  sessionId?: string | null;
   onOpenLocalPreview?: () => void;
   onSubmit: (input: string) => void;
   onResume?: () => void;
@@ -236,6 +237,7 @@ export default function AgentMainView({
   conversationRuns,
   error,
   localPreview,
+  sessionId,
   onOpenLocalPreview,
   onSubmit,
   onResume,
@@ -325,7 +327,7 @@ export default function AgentMainView({
               className="min-h-[104px] w-full resize-none rounded-2xl border border-[var(--agnes-border-subtle)] bg-[var(--agnes-card)] px-4 pb-12 pt-3 text-sm text-slate-200 placeholder:text-slate-600 outline-none transition focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 disabled:opacity-60"
             />
             <div className="absolute bottom-2.5 left-2.5">
-              <ModelSettings placement="input" locked={loading} />
+              <ModelSettings placement="input" locked={loading} sessionId={sessionId} />
             </div>
             <button
               type="submit"

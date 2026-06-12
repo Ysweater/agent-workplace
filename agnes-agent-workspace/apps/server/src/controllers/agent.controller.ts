@@ -4,7 +4,6 @@ import { createAgentRuntime } from '../lib/agentSetup.js';
 import { toAgentRunResponse } from '../lib/agentResponse.js';
 import { createHttpError } from '../middleware/errorHandler.js';
 import {
-  captureModelSnapshot,
   createRunModelBindings,
   type ModelRunSnapshot,
 } from '../services/modelProvider.service.js';
@@ -23,6 +22,7 @@ import {
   formatConversationForPrompt,
   loadConversation,
 } from '../services/conversationMemory.service.js';
+import { captureSessionModelSnapshot } from '../services/sessionModelPreference.service.js';
 
 const TASK_TYPE_HINTS: Record<string, AgentTaskType> = {
   research: 'research',
@@ -53,7 +53,7 @@ export async function runAgent(req: Request, res: Response): Promise<void> {
   const conversationHistory = await loadConversationWithStorageFallback(conversationSessionId);
 
   if (!agentType && isConversationalInput(trimmed)) {
-    const response = await runConversationalReply(trimmed, id, conversationHistory);
+    const response = await runConversationalReply(trimmed, id, conversationHistory, conversationSessionId);
     await persistConversation(conversationSessionId, trimmed, response, id);
     await storageService.saveSession(id, { ...response, sessionId: conversationSessionId });
     res.json({ ...response, sessionId: conversationSessionId });
@@ -62,7 +62,7 @@ export async function runAgent(req: Request, res: Response): Promise<void> {
 
   const taskTypeHint = agentType ? TASK_TYPE_HINTS[agentType] : undefined;
   const routeDecision = routeAgentTask(trimmed, taskTypeHint, conversationHistory);
-  const modelSnapshot = captureModelSnapshot();
+  const modelSnapshot = await captureSessionModelSnapshot(conversationSessionId);
   const runtime = createAgentRuntime(modelSnapshot);
 
   const result = await runtime.run(trimmed, {
@@ -104,7 +104,7 @@ export async function runAgentAsync(req: Request, res: Response): Promise<void> 
   const conversationHistory = await loadConversationWithStorageFallback(conversationSessionId);
 
   if (!agentType && isConversationalInput(trimmed)) {
-    const response = await runConversationalReply(trimmed, id, conversationHistory);
+    const response = await runConversationalReply(trimmed, id, conversationHistory, conversationSessionId);
     await persistConversation(conversationSessionId, trimmed, response, id);
     await storageService.saveSession(id, { ...response, sessionId: conversationSessionId });
     res.status(202).json({
@@ -118,7 +118,7 @@ export async function runAgentAsync(req: Request, res: Response): Promise<void> 
 
   const taskTypeHint = agentType ? TASK_TYPE_HINTS[agentType] : undefined;
   const routeDecision = routeAgentTask(trimmed, taskTypeHint, conversationHistory);
-  const modelSnapshot = captureModelSnapshot();
+  const modelSnapshot = await captureSessionModelSnapshot(conversationSessionId);
   const createdAt = new Date().toISOString();
   const immediateReply = buildImmediateAgentReply(routeDecision);
 
@@ -278,7 +278,7 @@ export async function resumeAgentRun(req: Request, res: Response): Promise<void>
     throw createHttpError(400, 'Run is not in a resumable state');
   }
 
-  const modelSnapshot = captureModelSnapshot();
+  const modelSnapshot = await captureSessionModelSnapshot(saved.context.sessionId);
   const runtime = createAgentRuntime(modelSnapshot);
   const routeDecision = saved.context.routeDecision ?? routeAgentTask(saved.context.task.userInput);
 
@@ -339,6 +339,8 @@ function toPublicModelSnapshot(snapshot: ModelRunSnapshot) {
     temperature: snapshot.temperature,
     configured: Boolean(snapshot.apiKey),
     source: snapshot.source,
+    ...(snapshot.presetId ? { presetId: snapshot.presetId } : {}),
+    ...(snapshot.label ? { label: snapshot.label } : {}),
     capturedAt: new Date().toISOString(),
   };
 }
@@ -434,9 +436,10 @@ async function runConversationalReply(
   userInput: string,
   runId: string,
   conversationHistory: Awaited<ReturnType<typeof loadConversation>> = [],
+  sessionId?: string,
 ) {
   const createdAt = new Date().toISOString();
-  const runModel = createRunModelBindings(captureModelSnapshot());
+  const runModel = createRunModelBindings(await captureSessionModelSnapshot(sessionId));
   const info = runModel.getModelsInfo();
   let answer = mockCapabilityReply();
   const historyBlock = formatConversationForPrompt(conversationHistory);

@@ -38,11 +38,12 @@ interface ModelSettingsProps {
   placement?: 'header' | 'input';
   /** Lock switching while an agent task is running */
   locked?: boolean;
+  sessionId?: string | null;
 }
 
-export default function ModelSettings({ placement = 'header', locked = false }: ModelSettingsProps) {
+export default function ModelSettings({ placement = 'header', locked = false, sessionId }: ModelSettingsProps) {
   const { models, catalog, catalogLoading, saving, testing, error, save, test, reset, selectPreset, loadCatalog } =
-    useModels();
+    useModels(sessionId);
   const [open, setOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [form, setForm] = useState<ModelConfigInput>({
@@ -233,8 +234,13 @@ export default function ModelSettings({ placement = 'header', locked = false }: 
             <p className="font-medium text-indigo-100">Codex-style 运行规则</p>
             <p className="mt-1 text-indigo-200/75">
               每个 Agent Run 启动时会捕获模型快照。{locked ? '当前任务会继续使用启动时模型；' : ''}
-              这里的切换不会中断正在执行的任务，只影响下一次发送或断点续传。
+              这里的切换会保存到当前会话，不会中断正在执行的任务，只影响下一次发送或断点续传。
             </p>
+            {sessionId && (
+              <p className="mt-1 font-mono text-[10px] text-indigo-200/50">
+                session: {sessionId.slice(0, 8)}
+              </p>
+            )}
           </div>
 
           <div className="mb-3 space-y-2">

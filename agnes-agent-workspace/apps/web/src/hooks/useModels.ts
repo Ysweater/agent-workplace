@@ -9,7 +9,7 @@ import type {
 
 const fallbackModel: ModelInfo = { provider: 'mock', model: 'mock', configured: false };
 
-export function useModels() {
+export function useModels(sessionId?: string | null) {
   const [models, setModels] = useState<ModelInfo | null>(null);
   const [catalog, setCatalog] = useState<ModelCatalogEntry[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
@@ -19,7 +19,8 @@ export function useModels() {
 
   const refresh = async () => {
     try {
-      const response = await fetch('/api/models');
+      const suffix = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : '';
+      const response = await fetch(`/api/models${suffix}`);
       if (!response.ok) throw new Error('模型配置读取失败');
       const data = (await response.json()) as ModelInfo;
       setModels(data);
@@ -33,6 +34,11 @@ export function useModels() {
     }
   };
 
+  const withSession = (config: ModelConfigInput) => ({
+    ...config,
+    ...(sessionId ? { sessionId } : {}),
+  });
+
   const save = async (config: ModelConfigInput) => {
     setSaving(true);
     setError(null);
@@ -40,7 +46,7 @@ export function useModels() {
       const response = await fetch('/api/models', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
+        body: JSON.stringify(withSession(config)),
       });
       const raw = (await response.json()) as ModelInfo | { error?: string };
       const apiError = 'error' in raw ? raw.error : undefined;
@@ -93,7 +99,7 @@ export function useModels() {
       if (!response.ok) throw new Error('模型目录加载失败');
       const data = (await response.json()) as ModelCatalogResponse;
       setCatalog(data.items);
-      if (data.active) setModels(data.active);
+      if (!sessionId && data.active) setModels(data.active);
       return data;
     } catch (err) {
       const message = err instanceof Error ? err.message : '模型目录加载失败';
@@ -111,7 +117,7 @@ export function useModels() {
       const response = await fetch('/api/models/select', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ presetId }),
+        body: JSON.stringify({ presetId, ...(sessionId ? { sessionId } : {}) }),
       });
       const raw = (await response.json()) as ModelInfo | { error?: string };
       const apiError = 'error' in raw ? raw.error : undefined;
@@ -135,7 +141,8 @@ export function useModels() {
     setSaving(true);
     setError(null);
     try {
-      const response = await fetch('/api/models', { method: 'DELETE' });
+      const suffix = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : '';
+      const response = await fetch(`/api/models${suffix}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('恢复环境配置失败');
       const data = (await response.json()) as ModelInfo;
       setModels(data);
@@ -159,7 +166,7 @@ export function useModels() {
     };
     window.addEventListener('agnes:model-updated', onModelUpdated);
     return () => window.removeEventListener('agnes:model-updated', onModelUpdated);
-  }, []);
+  }, [sessionId]);
 
   return {
     models,

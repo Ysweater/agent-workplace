@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type {
   ConversationTurnRecord,
+  ModelPreferenceRecord,
   ReportListItem,
   SavedReport,
   SessionListItem,
@@ -17,6 +18,7 @@ export class JsonFileStorage implements StorageAdapter {
   private conversationsDir: string;
   private reportsDir: string;
   private toolCallsDir: string;
+  private modelPreferencesDir: string;
 
   constructor(root: string) {
     this.root = root;
@@ -24,6 +26,7 @@ export class JsonFileStorage implements StorageAdapter {
     this.conversationsDir = path.join(root, 'conversations');
     this.reportsDir = path.join(root, 'reports');
     this.toolCallsDir = path.join(root, 'tool_calls');
+    this.modelPreferencesDir = path.join(root, 'model_preferences');
   }
 
   getStatus(): StorageStatus {
@@ -39,6 +42,7 @@ export class JsonFileStorage implements StorageAdapter {
     await fs.mkdir(this.conversationsDir, { recursive: true });
     await fs.mkdir(this.reportsDir, { recursive: true });
     await fs.mkdir(this.toolCallsDir, { recursive: true });
+    await fs.mkdir(this.modelPreferencesDir, { recursive: true });
   }
 
   async saveSession(sessionId: string, data: unknown): Promise<void> {
@@ -172,6 +176,7 @@ export class JsonFileStorage implements StorageAdapter {
     const targets = [...runIds].flatMap((id) => [
       path.join(this.sessionsDir, `${id}.json`),
       path.join(this.toolCallsDir, `${id}.json`),
+      path.join(this.modelPreferencesDir, `${id}.json`),
     ]);
     let deleted = false;
 
@@ -214,6 +219,38 @@ export class JsonFileStorage implements StorageAdapter {
       await fs.unlink(path.join(this.conversationsDir, `${sessionId}.json`));
     } catch {
       // Missing conversation memory is fine.
+    }
+  }
+
+  async loadModelPreference(sessionId: string): Promise<ModelPreferenceRecord | null> {
+    try {
+      const raw = await fs.readFile(
+        path.join(this.modelPreferencesDir, `${sessionId}.json`),
+        'utf-8',
+      );
+      return JSON.parse(raw) as ModelPreferenceRecord;
+    } catch {
+      return null;
+    }
+  }
+
+  async saveModelPreference(
+    sessionId: string,
+    preference: ModelPreferenceRecord,
+  ): Promise<void> {
+    await this.ensureDirs();
+    await fs.writeFile(
+      path.join(this.modelPreferencesDir, `${sessionId}.json`),
+      JSON.stringify({ ...preference, sessionId, updatedAt: new Date().toISOString() }, null, 2),
+      'utf-8',
+    );
+  }
+
+  async deleteModelPreference(sessionId: string): Promise<void> {
+    try {
+      await fs.unlink(path.join(this.modelPreferencesDir, `${sessionId}.json`));
+    } catch {
+      // Missing preference is fine.
     }
   }
 

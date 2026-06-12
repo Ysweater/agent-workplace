@@ -1,7 +1,11 @@
 import { useHealth } from '../hooks/useHealth';
 import ModelSettings from './ModelSettings';
 
-export default function WorkspaceHeader() {
+interface WorkspaceHeaderProps {
+  sessionId?: string | null;
+}
+
+export default function WorkspaceHeader({ sessionId }: WorkspaceHeaderProps) {
   const { health, connected } = useHealth();
 
   return (
@@ -14,7 +18,7 @@ export default function WorkspaceHeader() {
         </p>
 
         <div className="flex shrink-0 items-center gap-2 text-[10px] text-slate-500">
-          <ModelSettings placement="header" />
+          <ModelSettings placement="header" sessionId={sessionId} />
           <span
             className={`ml-1 h-1.5 w-1.5 rounded-full ${
               connected ? 'bg-emerald-500/80' : 'bg-red-500/80'

@@ -34,6 +34,7 @@ export default function WorkspacePage() {
     resume,
     loadResults,
     reset,
+    sessionId,
   } = useAgentRun();
   const {
     sessions,
@@ -165,7 +166,7 @@ export default function WorkspacePage() {
 
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden">
-      <WorkspaceHeader />
+      <WorkspaceHeader sessionId={sessionId} />
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <Sidebar
@@ -195,6 +196,7 @@ export default function WorkspacePage() {
             }
           }}
           onSubmit={(input) => void handleSubmit(input)}
+          sessionId={sessionId}
           onResume={
             result?.status === 'failed' && result.runId
               ? () => void resume(result.runId)

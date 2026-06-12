@@ -8,10 +8,20 @@ import {
   type ModelProviderType,
 } from '../services/modelProvider.service.js';
 import { getModelCatalog } from '../services/modelCatalog.service.js';
+import {
+  deleteSessionModelPreference,
+  getSessionPublicModelInfo,
+  saveSessionModelPreference,
+} from '../services/sessionModelPreference.service.js';
 
 export const modelRoutes = Router();
 
-modelRoutes.get('/', (_req, res) => {
+modelRoutes.get('/', async (req, res) => {
+  const sessionId = typeof req.query.sessionId === 'string' ? req.query.sessionId : undefined;
+  if (sessionId?.trim()) {
+    res.json(await getSessionPublicModelInfo(sessionId));
+    return;
+  }
   res.json(getPublicModelsInfo());
 });
 
@@ -21,11 +31,16 @@ modelRoutes.get('/catalog', async (req, res) => {
   res.json({ items: catalog, active: getPublicModelsInfo() });
 });
 
-modelRoutes.post('/select', (req, res) => {
+modelRoutes.post('/select', async (req, res) => {
   try {
-    const { presetId } = req.body as { presetId?: string };
+    const { presetId, sessionId } = req.body as { presetId?: string; sessionId?: string };
     if (!presetId?.trim()) {
       res.status(400).json({ error: 'presetId is required' });
+      return;
+    }
+    if (sessionId?.trim()) {
+      await saveSessionModelPreference(sessionId, { presetId: presetId.trim() });
+      res.json(await getSessionPublicModelInfo(sessionId));
       return;
     }
     res.json(applyModelPreset(presetId.trim()));
@@ -35,7 +50,7 @@ modelRoutes.post('/select', (req, res) => {
   }
 });
 
-modelRoutes.post('/', (req, res) => {
+modelRoutes.post('/', async (req, res) => {
   try {
     const body = req.body as {
       provider?: ModelProviderType;
@@ -43,7 +58,14 @@ modelRoutes.post('/', (req, res) => {
       model?: string;
       apiKey?: string;
       temperature?: number;
+      presetId?: string;
+      sessionId?: string;
     };
+    if (body.sessionId?.trim()) {
+      await saveSessionModelPreference(body.sessionId, body);
+      res.json(await getSessionPublicModelInfo(body.sessionId));
+      return;
+    }
     res.json(updateRuntimeModelConfig(body));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Invalid model config';
@@ -68,6 +90,12 @@ modelRoutes.post('/test', async (req, res) => {
   }
 });
 
-modelRoutes.delete('/', (_req, res) => {
+modelRoutes.delete('/', async (req, res) => {
+  const sessionId = typeof req.query.sessionId === 'string' ? req.query.sessionId : undefined;
+  if (sessionId?.trim()) {
+    await deleteSessionModelPreference(sessionId);
+    res.json(await getSessionPublicModelInfo(sessionId));
+    return;
+  }
   res.json(resetRuntimeModelConfig());
 });

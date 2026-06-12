@@ -62,6 +62,21 @@
 
 明确结论：模型切换不会中断当前生成；当前 run 继续使用启动瞬间的模型快照。新选择的模型只影响之后创建的 run。
 
+## 历史会话恢复与模型偏好
+
+当前实现已经从单纯内存态模型切换升级为 session-level model preference：
+
+1. `.env` / 环境变量提供全局默认模型。
+2. 用户在某个会话内切换模型时，后端会将该会话的模型偏好保存到 storage：
+   - JSON 模式：`storage/model_preferences/<sessionId>.json`
+   - PostgreSQL 模式：`model_preferences` 表
+3. 再次打开历史会话时，前端带着 `sessionId` 读取 `/api/models?sessionId=...`，恢复该会话的模型配置。
+4. 新 run 启动时，后端读取 session model preference 并冻结成 `ModelRunSnapshot`，写入 `context.modelSnapshot`。
+
+这对应 Claude Code 的 Settings / Session State / Query Snapshot 思想：配置可持久化，运行时可复现，当前执行不被中途切换影响。
+
+专项测试结果：保存 `session-persisted-model` 到指定 session 后，再发起 research run，`context.modelSnapshot.model` 等于 `session-persisted-model`，证明历史会话模型偏好会被恢复并用于后续任务。
+
 ## 关键代码位置
 
 | 技术点 | 代码位置 | 产品/架构类比 |
@@ -74,6 +89,7 @@
 | 工具注册与调用 | `packages/agent-core/src/ToolRegistry.ts`, `packages/tools/src/index.ts` | 类似 Codex tool use / function calling |
 | Prompt 优化 | `packages/tools/src/promptEnhancerTool.ts`, `packages/agent-core/src/Planner.ts`, `packages/agent-core/src/Executor.ts` | 类似专业 Agent 工作流中的 prompt engineer 前置节点；不让五大生产工作流直通用户原话 |
 | 模型快照 | `apps/server/src/services/modelProvider.service.ts` | 类似每个 run 固定 runtime config，避免执行中漂移 |
+| 会话模型偏好 | `apps/server/src/services/sessionModelPreference.service.ts`, `storage/model_preferences`, `model_preferences` 表 | 类似 Claude Code 的 session settings；历史会话恢复后继续使用该会话模型 |
 | 云端可切换存储 | `apps/server/src/services/storage/*` | Hardness-like adapter/fallback 工程组织 |
 
 ## 验证命令

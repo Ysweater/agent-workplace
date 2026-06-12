@@ -1,5 +1,5 @@
 import type { LLMMessage, LLMProvider, LLMResponse } from '@agnes/agent-core';
-import { getPresetById } from '../config/modelCatalog.js';
+import { getPresetById, resolvePresetApiKey } from '../config/modelCatalog.js';
 import { getDefaultChatPreset, selectPresetConfig } from './modelCatalog.service.js';
 import { generateZenmuxChat } from './zenmuxMedia.service.js';
 
@@ -203,18 +203,25 @@ function resolveRunConfig(snapshot?: ModelRunSnapshot): ModelRunSnapshot {
   };
 }
 
-function resolveInputSnapshot(input: RuntimeModelConfigInput): ModelRunSnapshot {
+export function resolveModelSnapshotFromInput(input: RuntimeModelConfigInput): ModelRunSnapshot {
   if (input.presetId) {
-    const preset = selectPresetConfig(input.presetId);
+    const meta = getPresetById(input.presetId);
+    if (!meta) {
+      throw new Error(`Unknown model preset: ${input.presetId}`);
+    }
+    const apiKey = input.apiKey?.trim() || resolvePresetApiKey(meta);
+    if (!apiKey) {
+      throw new Error(`Missing API key env: ${meta.envKey}`);
+    }
     return {
-      provider: preset.provider as ModelProviderType,
-      model: preset.model,
-      baseUrl: preset.baseUrl,
-      apiKey: preset.apiKey,
+      provider: meta.provider as ModelProviderType,
+      model: meta.model,
+      baseUrl: meta.baseUrl,
+      apiKey,
       temperature: readTemperature(),
       source: 'runtime',
-      presetId: preset.presetId,
-      label: getPresetById(input.presetId)?.label,
+      presetId: input.presetId,
+      label: meta.label,
     };
   }
 
@@ -304,6 +311,23 @@ export function getPublicModelsInfo(): PublicModelsInfo {
     source: info.source,
     ...(runtimeConfig.presetId ? { presetId: runtimeConfig.presetId } : {}),
     ...(runtimeConfig.label ? { label: runtimeConfig.label } : {}),
+  };
+}
+
+export function buildPublicModelsInfoFromSnapshot(snapshot: ModelRunSnapshot): PublicModelsInfo {
+  const usingMock = shouldUseMock(snapshot.provider, snapshot.apiKey);
+  const provider = usingMock ? 'mock' : snapshot.provider;
+  const model = usingMock ? 'mock' : snapshot.model;
+  return {
+    provider,
+    model,
+    configured: !usingMock,
+    ...(snapshot.baseUrl ? { baseUrl: snapshot.baseUrl } : {}),
+    baseUrlMasked: snapshot.baseUrl ? maskBaseUrl(snapshot.baseUrl) : '',
+    temperature: snapshot.temperature,
+    source: snapshot.source,
+    ...(snapshot.presetId ? { presetId: snapshot.presetId } : {}),
+    ...(snapshot.label ? { label: snapshot.label } : {}),
   };
 }
 
@@ -798,7 +822,7 @@ export function resetRuntimeModelConfig(): PublicModelsInfo {
 export async function testModelConnection(
   input?: RuntimeModelConfigInput,
 ): Promise<ModelTestResult> {
-  const snapshot = input && Object.keys(input).length > 0 ? resolveInputSnapshot(input) : undefined;
+  const snapshot = input && Object.keys(input).length > 0 ? resolveModelSnapshotFromInput(input) : undefined;
   const info = snapshot ? getModelProviderService().getModelsInfo(snapshot) : getModelsInfo();
   const started = Date.now();
 

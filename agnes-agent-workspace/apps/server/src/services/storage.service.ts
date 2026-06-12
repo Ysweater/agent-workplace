@@ -74,6 +74,15 @@ function wrapWithFallback(inner: StorageAdapter, fallback: JsonFileStorage): Sto
       tryOp(() => inner.saveConversation(id, turns), () => jsonFallback.saveConversation(id, turns)),
     deleteConversation: (id) =>
       tryOp(() => inner.deleteConversation(id), () => jsonFallback.deleteConversation(id)),
+    loadModelPreference: (id) =>
+      tryOp(() => inner.loadModelPreference(id), () => jsonFallback.loadModelPreference(id)),
+    saveModelPreference: (id, preference) =>
+      tryOp(
+        () => inner.saveModelPreference(id, preference),
+        () => jsonFallback.saveModelPreference(id, preference),
+      ),
+    deleteModelPreference: (id) =>
+      tryOp(() => inner.deleteModelPreference(id), () => jsonFallback.deleteModelPreference(id)),
     listToolCalls: (id) =>
       tryOp(() => inner.listToolCalls(id), () => jsonFallback.listToolCalls(id)),
     saveReport: (report) =>
