@@ -38,7 +38,7 @@
 
 ```typescript
 buildSystemPrompt({
-  agentType: 'research' | 'website' | 'summary' | 'general',
+  agentType: 'research' | 'website' | 'writing' | 'analysis' | 'presentation' | 'media' | 'summary',
   toolDescriptions?: string,  // 来自 ToolRegistry，动态注入
 })
 ```
@@ -90,7 +90,7 @@ buildSystemPrompt({
 
 ```typescript
 buildPlannerPrompt({
-  taskType: 'research' | 'website' | 'summary' | 'general',
+  taskType: 'research' | 'website' | 'writing' | 'analysis' | 'presentation' | 'media' | 'summary',
   availableTools?: string[],
   userInput?: string,
 })
@@ -122,10 +122,15 @@ buildPlannerPrompt({
 
 | 任务类型 | 步骤数 | 推荐工具链 |
 |----------|--------|------------|
-| `research` | 3–5 步 | `web_search` → `research_report` → `html_export` → `summary` |
-| `website` | 2–3 步 | `website_builder` → `summary` |
+| `research` | 4–5 步 | `prompt_enhancer` → `web_search` → `research_report` → `html_export` → `summary` |
+| `website` | 3 步 | `prompt_enhancer` → `website_builder` → `summary` |
+| `presentation` | 3 步 | `prompt_enhancer` → `presentation_generator` → `summary` |
+| `media` | 3–4 步 | `prompt_enhancer` → `image_generator` / `video_generator` → `summary` |
+| `writing` / `analysis` | 3–4 步 | `prompt_enhancer` → `document_generator` → `html_export` → `summary` |
 | `summary` | 1–2 步 | `summary` |
-| `general` | 按复杂度 | 须可计划、可工具调用、可追踪 |
+| fallback | 按复杂度 | 须可计划、可工具调用、可追踪 |
+
+`Planner.normalizePlanForTaskType` 会在真实模型漏掉 `prompt_enhancer` 时自动补齐，确保生产型工作流不会把用户原话直接交给生成工具。
 
 ### 设计原因
 

@@ -4,7 +4,7 @@
 
 **Agnes Agent Workspace 未复制 Claude Code 源码。** 本项目在理解 Claude Code 公开的产品形态与架构理念后，**借鉴其思想**（QueryEngine、Tool Registry、Context、Permission、可观测性），使用 **TypeScript 全栈** **独立实现** 了一套 Web 端 Agent 工作台。
 
-架构核心是 **Agent Runtime**、**Tool Registry**、**Context Manager** 三件套；其余模块围绕这三者编排。
+架构核心是 **Agent Loop**、**Agent Runtime**、**Tool Registry**、**Context Manager** 四件套；其余模块围绕这些边界编排。
 
 ---
 
@@ -28,10 +28,10 @@
 ┌────────────────────────────────────▼─────────────────────────────────────┐
 │                    packages/agent-core（Agent 核心）                        │
 │                                                                           │
-│   ┌─────────────┐    ┌──────────┐    ┌──────────┐    ┌─────────────────┐ │
-│   │ AgentRuntime│───▶│ Planner  │───▶│ Executor │───▶│ ContextManager  │ │
-│   │  编排入口    │    │ 计划生成  │    │ 逐步执行  │    │ 上下文累积       │ │
-│   └──────┬──────┘    └────┬─────┘    └────┬─────┘    └─────────────────┘ │
+│   ┌──────────┐ ┌─────────────┐ ┌──────────┐ ┌──────────┐ ┌─────────────┐ │
+│   │AgentLoop │▶│ AgentRuntime│▶│ Planner  │▶│ Executor │▶│ContextMgr   │ │
+│   │阶段记录   │ │  编排入口    │ │ 计划生成  │ │ 逐步执行  │ │上下文累积    │ │
+│   └────┬─────┘ └──────┬──────┘ └────┬─────┘ └────┬─────┘ └─────────────┘ │
 │          │                │               │                                 │
 │          │                │               ▼                                 │
 │          │                │        ┌──────────────┐                       │
@@ -64,7 +64,7 @@ AgentRuntime.run(userInput, { taskTypeHint? })
     ├─▶ validatePlan()                   ← 未知工具 → warning + 跳过
     │
     └─▶ Executor.executePlan()           ← 顺序执行每步
-            ├─ buildToolInput(step, ctx)
+            ├─ buildToolInput(step, ctx)   ← 生成类工具读取 prompt_enhancer.enhancedPrompt
             ├─ tool.execute(input, ctx)
             ├─ ContextManager.addToolCall / addArtifact
             └─ stepOutputs 累积供下一步使用
@@ -103,8 +103,10 @@ Final Result → context.artifacts + summary + trace
 
 | 类型 | 典型输入特征 | 确定性模板工具链 |
 |------|--------------|------------------|
-| `research` | 以「调研」开头、研究报告、行业分析 | `web_search` → `research_report` → `html_export` → `summary` |
-| `website` | 网站、小游戏、吃豆人、页面（非纯调研） | `website_builder` → `summary` |
+| `research` | 以「调研」开头、研究报告、行业分析 | `prompt_enhancer` → `web_search` → `research_report` → `html_export` → `summary` |
+| `website` | 网站、小游戏、吃豆人、页面（非纯调研） | `prompt_enhancer` → `website_builder` → `summary` |
+| `presentation` | PPT、演示稿、slides、deck | `prompt_enhancer` → `presentation_generator` → `summary` |
+| `media` | 图片、视频、海报、AIGC | `prompt_enhancer` → `image_generator/video_generator` → `summary` |
 | `summary` | 其他总结类 | `summary` |
 
 **计划生成策略**：
@@ -153,6 +155,7 @@ Final Result → context.artifacts + summary + trace
 | `stepTransitions` | 步骤状态变迁时间线 |
 | `artifacts` | Markdown / HTML / 代码方案等中间与最终产物 |
 | `finalResult` | 运行结束后的汇总 |
+| `loopEvents` | 显式 Agent Loop 阶段：perceive、route、plan、act、observe、reflect、persist、resume、stop |
 
 **设计要点**：
 
@@ -253,6 +256,7 @@ Final Result → context.artifacts + summary + trace
 | 类型 | 含义 |
 |------|------|
 | `plan` | 计划步骤 |
+| `loop_event` | CC-style Agent Loop 阶段事件 |
 | `tool_call` | 工具调用开始 |
 | `tool_result` | 工具返回 |
 | `artifact` | 产物生成 |
@@ -268,7 +272,7 @@ Final Result → context.artifacts + summary + trace
 
 | Claude Code 概念 | 本项目模块 | 实现说明 |
 |------------------|------------|----------|
-| **QueryEngine** 多轮任务循环 | `AgentRuntime` + `Planner` + `Executor` | 任务 → 计划 → 逐步工具调用 → 最终产物 |
+| **QueryEngine** 多轮任务循环 | `AgentLoop` + `AgentRuntime` + `Planner` + `Executor` | 任务 → 计划 → 逐步工具调用 → 观察/反思 → 最终产物 |
 | **Tool.ts** 单工具抽象 | `ToolDefinition` | `name` / `description` / `execute` |
 | **tools.ts** 工具注册表 | `ToolRegistry` + `agentSetup.ts` | 集中注册，按名调度 |
 | **Context** 上下文 | `ContextManager` | task、plan、toolCalls、artifacts 累积 |

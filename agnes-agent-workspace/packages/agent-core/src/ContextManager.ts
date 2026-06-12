@@ -1,5 +1,8 @@
 import type {
   AgentContext,
+  AgentLoopEvent,
+  AgentLoopStage,
+  AgentLoopStatus,
   AgentPlan,
   AgentStepStatus,
   Artifact,
@@ -44,6 +47,7 @@ export class ContextManager {
         : {}),
       ...(options.routeDecision ? { routeDecision: options.routeDecision } : {}),
       ...(options.modelSnapshot ? { modelSnapshot: options.modelSnapshot } : {}),
+      loopEvents: [],
       plan: null,
       toolCalls: [],
       stepOutputs: {},
@@ -109,6 +113,27 @@ export class ContextManager {
     const record = this.context.toolCalls.find((c) => c.id === callId);
     if (!record) return;
     Object.assign(record, patch);
+  }
+
+  addLoopEvent(input: {
+    stage: AgentLoopStage;
+    status: AgentLoopStatus;
+    message: string;
+    data?: Record<string, unknown>;
+  }): AgentLoopEvent {
+    if (!this.context.loopEvents) {
+      this.context.loopEvents = [];
+    }
+    const event: AgentLoopEvent = {
+      id: crypto.randomUUID(),
+      stage: input.stage,
+      status: input.status,
+      message: input.message,
+      timestamp: new Date().toISOString(),
+      ...(input.data ? { data: structuredClone(input.data) } : {}),
+    };
+    this.context.loopEvents.push(event);
+    return structuredClone(event);
   }
 
   setStepOutput(stepId: string, output: unknown): void {

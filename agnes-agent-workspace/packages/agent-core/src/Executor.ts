@@ -1,4 +1,5 @@
 import { extractArtifact, resolveArtifactFromOutput } from './artifact.js';
+import type { AgentLoop } from './AgentLoop.js';
 import type { ContextManager } from './ContextManager.js';
 import type { ToolRegistry } from './ToolRegistry.js';
 import type { AgentContext, AgentPlan, AgentStep, ToolExecutionServices } from './types.js';
@@ -18,7 +19,7 @@ export class Executor {
   async executePlan(
     plan: AgentPlan,
     contextManager: ContextManager,
-    options: { skipCompleted?: boolean } = {},
+    options: { skipCompleted?: boolean; loop?: AgentLoop } = {},
   ): Promise<void> {
     const ctx = contextManager.getMutableContext();
 
@@ -40,7 +41,7 @@ export class Executor {
         status: 'running',
         updatedAt: new Date().toISOString(),
       });
-      await this.executeStep(step, ctx, contextManager);
+      await this.executeStep(step, ctx, contextManager, options.loop);
     }
   }
 
@@ -48,6 +49,7 @@ export class Executor {
     step: AgentStep,
     ctx: AgentContext,
     contextManager: ContextManager,
+    loop?: AgentLoop,
   ): Promise<void> {
     contextManager.updateStepStatus(step.id, 'running');
 
@@ -60,6 +62,12 @@ export class Executor {
     const callId = crypto.randomUUID();
     const startedAt = new Date().toISOString();
     const input = buildToolInput(step, ctx);
+
+    loop?.record('act', 'started', `Executing tool node ${step.toolName}`, {
+      stepId: step.id,
+      title: step.title,
+      toolName: step.toolName,
+    });
 
     contextManager.addToolCall({
       id: callId,
@@ -97,6 +105,15 @@ export class Executor {
       }
 
       contextManager.updateStepStatus(step.id, 'success');
+      loop?.record('observe', 'completed', `Observed result from ${step.toolName}`, {
+        stepId: step.id,
+        toolName: step.toolName,
+        hasArtifact: Boolean(artifact),
+      });
+      loop?.record('reflect', 'completed', `Step ${step.id} satisfied expected output`, {
+        stepId: step.id,
+        expectedOutput: step.expectedOutput,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       contextManager.updateToolCall(callId, {
@@ -105,6 +122,11 @@ export class Executor {
         completedAt: new Date().toISOString(),
       });
       contextManager.updateStepStatus(step.id, 'error');
+      loop?.record('reflect', 'failed', `Step ${step.id} failed and run can be resumed`, {
+        stepId: step.id,
+        toolName: step.toolName,
+        error: message,
+      });
       throw err;
     }
   }
@@ -112,6 +134,7 @@ export class Executor {
 
 function buildToolInput(step: AgentStep, ctx: AgentContext): Record<string, unknown> {
   const userInput = ctx.task.userInput;
+  const optimizedTask = extractPrompt(findOutputByTool(ctx, 'prompt_enhancer'), userInput);
 
   switch (step.toolName) {
     case 'web_search':
@@ -124,7 +147,8 @@ function buildToolInput(step: AgentStep, ctx: AgentContext): Record<string, unkn
       const searchOutput = findOutputByTool(ctx, 'web_search');
       const sources = extractSources(searchOutput);
       return {
-        topic: userInput,
+        topic: optimizedTask,
+        originalTopic: userInput,
         sources,
       };
     }
@@ -138,18 +162,20 @@ function buildToolInput(step: AgentStep, ctx: AgentContext): Record<string, unkn
     }
 
     case 'website_builder':
-      return { requirement: userInput };
+      return { requirement: optimizedTask, originalRequirement: userInput };
 
     case 'document_generator':
       return {
-        task: userInput,
+        task: optimizedTask,
+        originalTask: userInput,
         taskType: ctx.task.taskType,
         conversationContext: formatConversationContext(ctx),
       };
 
     case 'presentation_generator':
       return {
-        task: userInput,
+        task: optimizedTask,
+        originalTask: userInput,
         conversationContext: formatConversationContext(ctx),
       };
 

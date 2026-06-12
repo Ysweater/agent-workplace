@@ -9,12 +9,12 @@ Agnes Agent Workspace 是一个 Web Agent 工作台原型，不是单页建站 D
 | 功能 | 工作流 | 产物 |
 | --- | --- | --- |
 | 正常对话 | chat direct reply | 文本回答、会话记忆 |
-| 检索分析报告 | `web_search -> research_report -> html_export -> summary` | Markdown 报告、HTML 预览、总结 |
-| 一键建站 | `website_builder -> summary` | HTML 预览、文件清单、建站说明 |
-| PPT 生成 | `presentation_generator -> summary` | slides JSON、Markdown 大纲、HTML deck 预览 |
+| 检索分析报告 | `prompt_enhancer -> web_search -> research_report -> html_export -> summary` | 优化调研 brief、Markdown 报告、HTML 预览、总结 |
+| 一键建站 | `prompt_enhancer -> website_builder -> summary` | 优化建站 brief、HTML 预览、文件清单、建站说明 |
+| PPT 生成 | `prompt_enhancer -> presentation_generator -> summary` | 优化演示 brief、slides JSON、Markdown 大纲、HTML deck 预览 |
 | 图片/视频 AIGC | `prompt_enhancer -> image_generator/video_generator -> summary` | 增强 prompt、媒体状态/媒体产物、总结 |
 
-AIGC 不直接把用户原话传给生成模型。媒体工作流强制先执行 `prompt_enhancer`，再把增强后的 `enhancedPrompt` 传给图片或视频生成工具。
+生产型工作流不直接把用户原话传给生成模型。Planner 模板和归一化逻辑会强制先执行 `prompt_enhancer`，再把增强后的 `enhancedPrompt` 传给调研报告、建站、PPT、文档、图片或视频生成工具。
 
 ## CC 源码借鉴内容与个人理解
 
@@ -22,7 +22,7 @@ AIGC 不直接把用户原话传给生成模型。媒体工作流强制先执行
 
 | Claude Code 启发 | 我的理解 | Agnes 实现 |
 | --- | --- | --- |
-| QueryEngine | Agent 的核心不是“回答”，而是围绕状态持续推进一个任务循环 | `AgentRuntime -> Planner -> Executor -> ContextManager` |
+| QueryEngine / Loop | Agent 的核心不是“回答”，而是围绕状态持续推进一个任务循环 | `AgentLoop -> AgentRuntime -> Planner -> Executor -> ContextManager` |
 | Tool 抽象 | 能力必须被显式注册、可审计、可回放，不能让模型任意调用未授权动作 | `ToolDefinition` + `ToolRegistry` |
 | Context | 多步任务需要一个单一事实来源保存计划、工具输出、产物和最终结论 | `AgentContext` + `ContextManager` |
 | Permission/边界 | 密钥、模型、工具和降级策略必须在服务端受控 | `modelProvider.service.ts`、工具白名单、Mock 降级 |
@@ -33,6 +33,7 @@ AIGC 不直接把用户原话传给生成模型。媒体工作流强制先执行
 
 | Agnes 代码 | 对应思想 | 说明 |
 | --- | --- | --- |
+| `packages/agent-core/src/AgentLoop.ts` | QueryEngine loop / Ralph Loop | 显式记录 perceive/route/plan/act/observe/reflect/persist/resume/stop |
 | `packages/agent-core/src/AgentRuntime.ts` | QueryEngine / 主循环 | 创建上下文、调用 Planner、驱动 Executor、写 checkpoint |
 | `packages/agent-core/src/Planner.ts` | 任务规划 | 根据意图、上下文、可用工具生成步骤 |
 | `packages/agent-core/src/Executor.ts` | Tool use loop | 顺序执行工具，把上游输出喂给下游 |
@@ -66,14 +67,15 @@ AIGC 不直接把用户原话传给生成模型。媒体工作流强制先执行
 
 1. System prompt：定义 Agnes 是任务驱动 Agent，必须计划、调用工具、总结，不编造事实。
 2. Planner prompt：要求模型只输出 JSON 数组，每步绑定注册工具名。
-3. Tool prompts：调研、建站、PPT、媒体增强、总结分别有专用约束。
+3. Prompt Optimizer：`prompt_enhancer` 把原始用户需求扩写为结构化 production brief。
+4. Tool prompts：调研、建站、PPT、媒体增强、总结分别有专用约束。
 
-媒体 prompt 的关键约束：
+Prompt Optimizer 的关键约束：
 
 ```text
-Rewrite the user request into a production-ready image/video generation prompt.
-Include subject, scene, style, composition, camera, lighting, quality constraints, and negative constraints.
-Output only the optimized prompt text.
+Rewrite the raw user request into a structured production brief before any generation tool runs.
+Include goal, audience, artifact structure, style constraints, factual boundaries, acceptance criteria, and preview requirements.
+For media, include subject, scene, composition, camera, lighting, quality constraints, and negative constraints.
 ```
 
 ## 项目实现流程
@@ -98,16 +100,18 @@ flowchart LR
 ```mermaid
 flowchart TD
   Start["run(userInput)"] --> Context["创建 AgentContext"]
-  Context --> Route["写入 routeDecision + modelSnapshot"]
-  Route --> Plan["Planner: LLM JSON 或模板计划"]
+  Context --> Perceive["Loop: perceive 读取输入/记忆/模型快照"]
+  Perceive --> Route["Loop: route 写入 routeDecision"]
+  Route --> Plan["Loop: plan 生成/归一化工具步骤"]
   Plan --> Validate["校验工具是否已注册"]
-  Validate --> Checkpoint["写 loopCheckpoint"]
-  Checkpoint --> Step["执行当前 step"]
+  Validate --> Checkpoint["Loop: persist 写 loopCheckpoint"]
+  Checkpoint --> Step["Loop: act 执行当前 step"]
   Step --> Tool["调用工具"]
-  Tool --> Observe["记录 toolCall/stepOutput/artifact"]
-  Observe --> More{"还有 pending step?"}
+  Tool --> Observe["Loop: observe 记录 toolCall/stepOutput/artifact"]
+  Observe --> Reflect["Loop: reflect 判断是否满足预期"]
+  Reflect --> More{"还有 pending step?"}
   More -->|Yes| Step
-  More -->|No| Done["finalResult + completed checkpoint"]
+  More -->|No| Done["Loop: stop + finalResult + completed checkpoint"]
 ```
 
 ## 展示效果

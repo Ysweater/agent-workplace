@@ -16,9 +16,9 @@
 | --- | --- | --- |
 | 主 Agent 先快速回复用户，后台路由工作流 | 通过 | `POST /api/agent/run-async` 先返回 HTTP 202、`status=running`、`immediateReply`，初始 `toolCalls=[]`；随后轮询 run 完成 |
 | 正常对话 | 通过 | 普通问题进入直接 chat 响应，`context.finalResult.mode=chat`，不调用工具 |
-| 检索分析报告 | 通过 | 工具链：`web_search -> research_report -> html_export -> summary`，产出 Markdown/HTML artifact |
-| 一键建站 | 通过 | 工具链：`website_builder -> summary`，产出 HTML preview artifact，并可由站点构建服务启动 Vite 预览 |
-| PPT 生成 | 通过 | 工具链：`presentation_generator -> summary`，产出结构化 slides、Markdown outline 和 HTML deck preview |
+| 检索分析报告 | 通过 | 工具链：`prompt_enhancer -> web_search -> research_report -> html_export -> summary`；`research_report.input.topic` 使用增强后的 brief，产出 Markdown/HTML artifact |
+| 一键建站 | 通过 | 工具链：`prompt_enhancer -> website_builder -> summary`；`website_builder.input.requirement` 使用增强后的建站 brief，产出 HTML preview artifact |
+| PPT 生成 | 通过 | 工具链：`prompt_enhancer -> presentation_generator -> summary`；`presentation_generator.input.task` 使用增强后的演示 brief，产出 slides/Markdown/HTML deck |
 | 图片 AIGC | 通过 | 工具链：`prompt_enhancer -> image_generator -> summary`；`image_generator.input.prompt` 等于增强后的 prompt，不等于用户原话 |
 | 视频 AIGC | 通过 | 工具链：`prompt_enhancer -> video_generator -> summary`；视频生成同样强制使用增强 prompt |
 | 记忆持久化 + 上下文衔接 | 通过 | 同一 `sessionId` 下连续两次 run，后续 run 的 `conversationHistory.length=2`，`GET /api/agent/sessions/:sessionId` 返回多 run |
@@ -26,7 +26,7 @@
 | 断点续传 | 通过实现 | `loopCheckpoint` 保存当前节点、已完成节点、待执行节点；`POST /api/agent/runs/:runId/resume` 从保存 context 跳过成功步骤继续执行 |
 | 路由策略清晰可解释 | 通过 | `workflowRouter.service.ts` 输出 `intent`、`workflowName`、`confidence`、`signals`、`reason` |
 | 模型切换行为 | 通过 | 实测结论：当前任务不会中断，也不会切换到新模型；任务启动时捕获 `ModelRunSnapshot`，后续 Planner/Tools 均使用该快照；新模型只影响下一次 run |
-| Loop Engineering | 通过 | `AgentRuntime -> Planner -> Executor -> ContextManager` 构成决策/执行循环，checkpoint 和 trace 记录每个 step/tool/artifact |
+| Loop Engineering | 通过 | `AgentLoop -> AgentRuntime -> Planner -> Executor -> ContextManager` 构成显式决策循环；`context.loopEvents` 与 `trace[type=loop_event]` 记录 perceive/route/plan/act/observe/reflect/persist/resume/stop |
 
 ## 模型切换实测结论
 
@@ -57,10 +57,10 @@
 | 主 Agent 快速回复 + 后台执行 | `apps/server/src/controllers/agent.controller.ts` | 类似 Codex 先给状态反馈，再继续执行任务 |
 | Workflow 路由 | `apps/server/src/services/workflowRouter.service.ts` | 类似 Claude Code/Codex 的任务意图分流 |
 | Planner | `packages/agent-core/src/Planner.ts` | 类似 Claude Code QueryEngine 前的计划生成 |
-| Loop 执行 | `packages/agent-core/src/AgentRuntime.ts`, `packages/agent-core/src/Executor.ts` | 类似 ReAct 的 plan-act-observe-finalize 升级版 |
+| Loop 执行 | `packages/agent-core/src/AgentLoop.ts`, `packages/agent-core/src/AgentRuntime.ts`, `packages/agent-core/src/Executor.ts` | 类似 ReAct 的 perceive-route-plan-act-observe-reflect-persist 升级版 |
 | Context/Checkpoint | `packages/agent-core/src/ContextManager.ts`, `apps/server/src/services/checkpoint.service.ts` | 类似 LangGraph state/checkpoint |
 | 工具注册与调用 | `packages/agent-core/src/ToolRegistry.ts`, `packages/tools/src/index.ts` | 类似 Codex tool use / function calling |
-| AIGC prompt 优化 | `packages/tools/src/promptEnhancerTool.ts`, `packages/tools/src/mediaGeneratorTools.ts` | 类似专业生成工作流中的 prompt engineer 前置节点 |
+| Prompt 优化 | `packages/tools/src/promptEnhancerTool.ts`, `packages/agent-core/src/Planner.ts`, `packages/agent-core/src/Executor.ts` | 类似专业 Agent 工作流中的 prompt engineer 前置节点；不让五大生产工作流直通用户原话 |
 | 模型快照 | `apps/server/src/services/modelProvider.service.ts` | 类似每个 run 固定 runtime config，避免执行中漂移 |
 | 云端可切换存储 | `apps/server/src/services/storage/*` | Hardness-like adapter/fallback 工程组织 |
 

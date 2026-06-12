@@ -43,6 +43,18 @@ function artifactTypes(run) {
   return (run.artifacts ?? run.context?.artifacts ?? []).map((artifact) => artifact.type);
 }
 
+function calls(run) {
+  return run.toolCalls ?? run.context?.toolCalls ?? [];
+}
+
+function callByTool(run, toolName) {
+  return calls(run).find((call) => call.toolName === toolName);
+}
+
+function enhancedPrompt(run) {
+  return callByTool(run, 'prompt_enhancer')?.output?.enhancedPrompt;
+}
+
 async function main() {
   const checks = [];
   const startedAt = new Date().toISOString();
@@ -101,9 +113,13 @@ async function main() {
   checks.push(
     assert(
       'research analysis report workflow',
-      ['web_search', 'research_report', 'html_export', 'summary'].every((name) =>
+      ['prompt_enhancer', 'web_search', 'research_report', 'html_export', 'summary'].every((name) =>
         toolNames(research).includes(name),
-      ) && artifactTypes(research).includes('html'),
+      ) &&
+        callByTool(research, 'research_report')?.input?.topic === enhancedPrompt(research) &&
+        callByTool(research, 'research_report')?.input?.topic !==
+          '调研 2026 年国内 AI Agent 产品发展趋势' &&
+        artifactTypes(research).includes('html'),
       toolNames(research).join(' -> '),
     ),
   );
@@ -116,7 +132,12 @@ async function main() {
   checks.push(
     assert(
       'one-click website workflow',
-      toolNames(website).includes('website_builder') && artifactTypes(website).includes('html'),
+      toolNames(website).includes('prompt_enhancer') &&
+        toolNames(website).includes('website_builder') &&
+        callByTool(website, 'website_builder')?.input?.requirement === enhancedPrompt(website) &&
+        callByTool(website, 'website_builder')?.input?.requirement !==
+          '一键建站：生成一个有首屏、功能区和表单的品牌官网' &&
+        artifactTypes(website).includes('html'),
       toolNames(website).join(' -> '),
     ),
   );
@@ -129,7 +150,12 @@ async function main() {
   checks.push(
     assert(
       'PPT generation workflow',
-      toolNames(presentation).includes('presentation_generator') &&
+      toolNames(presentation).includes('prompt_enhancer') &&
+        toolNames(presentation).includes('presentation_generator') &&
+        callByTool(presentation, 'presentation_generator')?.input?.task ===
+          enhancedPrompt(presentation) &&
+        callByTool(presentation, 'presentation_generator')?.input?.task !==
+          '生成一份 Agnes Agent Workspace 项目汇报 PPT' &&
         artifactTypes(presentation).includes('html'),
       toolNames(presentation).join(' -> '),
     ),
@@ -140,7 +166,7 @@ async function main() {
     'media',
     'acceptance-image',
   );
-  const imageCalls = image.toolCalls ?? image.context?.toolCalls ?? [];
+  const imageCalls = calls(image);
   const imageEnhanced = imageCalls.find((call) => call.toolName === 'prompt_enhancer')?.output
     ?.enhancedPrompt;
   const imageInputPrompt = imageCalls.find((call) => call.toolName === 'image_generator')?.input
@@ -162,7 +188,7 @@ async function main() {
     'media',
     'acceptance-video',
   );
-  const videoCalls = video.toolCalls ?? video.context?.toolCalls ?? [];
+  const videoCalls = calls(video);
   checks.push(
     assert(
       'video AIGC prompt enhancement before generation',
@@ -224,6 +250,16 @@ async function main() {
         Array.isArray(loop.completedNodeIds) &&
         loop.completedNodeIds.length === research.plan?.steps?.length,
       JSON.stringify(loop),
+    ),
+  );
+  const loopStages = new Set((research.context?.loopEvents ?? []).map((event) => event.stage));
+  checks.push(
+    assert(
+      'explicit CC-style loop stages are traced',
+      ['perceive', 'route', 'plan', 'act', 'observe', 'reflect', 'persist', 'stop'].every(
+        (stage) => loopStages.has(stage),
+      ) && (research.trace ?? []).some((event) => event.type === 'loop_event'),
+      [...loopStages].join(' -> '),
     ),
   );
 

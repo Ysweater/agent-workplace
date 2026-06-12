@@ -19,7 +19,7 @@ Agnes Agent Workspace 是一个可演示、可扩展的 **Agent 工作台原型*
 | **任务驱动** | 用户输入的是任务，而非闲聊；系统走「计划 → 执行 → 总结」 |
 | **工具化能力** | 检索、写报告、导出 HTML、建站、总结等均通过标准工具完成 |
 | **过程可观测** | 计划步骤、工具调用、产物在 UI 中可追踪 |
-| **核心三件套** | **Agent Runtime**、**Tool Registry**、**Context Manager** 为架构核心 |
+| **核心四件套** | **Agent Loop**、**Agent Runtime**、**Tool Registry**、**Context Manager** 为架构核心 |
 | **可演示降级** | 无 API Key 时 `MODEL_PROVIDER=mock`，Planner 使用确定性模板，仍可完整演示 |
 | **存储可扩展** | 默认本地 JSON；可选云端 PostgreSQL，失败自动降级 |
 
@@ -46,7 +46,7 @@ Agnes Agent Workspace 是一个可演示、可扩展的 **Agent 工作台原型*
 
 | Claude Code 思想 | Agnes 实现 |
 |------------------|------------|
-| QueryEngine（多轮执行循环） | `AgentRuntime` → `Planner` → `Executor` |
+| QueryEngine（多轮执行循环） | `AgentLoop` → `AgentRuntime` → `Planner` → `Executor` |
 | Tool.ts / tools.ts（标准工具注册） | `ToolRegistry` + `packages/tools` |
 | Context（会话上下文累积） | `ContextManager` |
 | Permission（权限与安全边界） | 后端密钥隔离、工具白名单、Mock 降级 |
@@ -63,6 +63,7 @@ Agnes Agent Workspace 是一个可演示、可扩展的 **Agent 工作台原型*
 ### Agent 核心（`packages/agent-core`）
 
 - [x] `AgentRuntime` — 编排计划生成与逐步执行
+- [x] `AgentLoop` — 显式记录 perceive / route / plan / act / observe / reflect / persist / resume / stop
 - [x] `Planner` — 任务分类、LLM/模板计划、`taskTypeHint` 支持
 - [x] `Executor` — 顺序执行计划步骤、统一工具入参、产物写入 Context
 - [x] `ContextManager` — 维护 task / plan / toolCalls / artifacts / stepTransitions
@@ -194,7 +195,7 @@ npm run dev
 调研 2026 年国内 AI Agent 产品发展趋势
 ```
 
-**预期链路**：`web_search` → `research_report` → `html_export` → `summary`（4 次工具调用）
+**预期链路**：`prompt_enhancer` → `web_search` → `research_report` → `html_export` → `summary`（5 次工具调用）
 
 **预期产物**：Markdown 调研报告、HTML 预览、执行总结；右侧 ResultPreview 可切换 Markdown / HTML；左侧 ChatPanel 展示 Agent 摘要。
 
@@ -206,7 +207,7 @@ npm run dev
 随机生成一个有首屏和表单的品牌官网
 ```
 
-**预期链路**：`website_builder` → `summary`（2 次工具调用）
+**预期链路**：`prompt_enhancer` → `website_builder` → `summary`（3 次工具调用）
 
 **预期产物**：建站方案 + `files` 列表；Website 预览 Tab 展示 `website_builder` 输出的 `preview/index.html`。配置真实模型 API 后，`website_builder` 会优先调用模型按需求动态生成网站/小游戏文件；Mock 模式仅作为离线兜底。
 
@@ -274,6 +275,7 @@ DATABASE_URL=postgresql://user:password@127.0.0.1:5432/agnes
 | 前端工作台 | `apps/web` — 三栏可观测 UI |
 | 架构文档 | [architecture.md](./architecture.md) |
 | AI Agent 技术标注 | [docs/agent-tech-map.md](./docs/agent-tech-map.md) |
+| CC Loop 深入分析 | [docs/cc-loop-analysis.md](./docs/cc-loop-analysis.md) |
 | 提示词文档 | [prompts.md](./prompts.md) |
 | 演示脚本 | [demo-script.md](./demo-script.md) |
 | 环境模板 | [.env.example](./.env.example) |

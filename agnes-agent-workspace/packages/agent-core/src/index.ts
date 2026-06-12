@@ -1,5 +1,6 @@
 export { AgentRuntime } from './AgentRuntime.js';
 export type { AgentRuntimeOptions } from './AgentRuntime.js';
+export { AgentLoop } from './AgentLoop.js';
 export { ContextManager } from './ContextManager.js';
 export { Executor } from './Executor.js';
 export { Planner, classifyTaskType } from './Planner.js';

@@ -4,6 +4,17 @@ import type { AgentContext, TraceEvent } from './types.js';
 export function buildTrace(context: AgentContext, extra: TraceEvent[] = []): TraceEvent[] {
   const events: TraceEvent[] = [];
 
+  for (const event of context.loopEvents ?? []) {
+    events.push({
+      id: crypto.randomUUID(),
+      type: 'loop_event',
+      timestamp: event.timestamp,
+      data: {
+        loop: event,
+      },
+    });
+  }
+
   if (context.routeDecision) {
     events.push({
       id: crypto.randomUUID(),

@@ -2,6 +2,39 @@ import type { AgentContext, ToolDefinition } from '@agnes/agent-core';
 import type { PromptEnhancerOutput } from './types.js';
 
 function fallbackPrompt(task: string, target: string): PromptEnhancerOutput {
+  if (target !== 'media') {
+    const targetLabels: Record<string, string> = {
+      research: 'research report',
+      website: 'website or interactive preview',
+      writing: 'structured writing deliverable',
+      analysis: 'analysis deliverable',
+      presentation: 'presentation deck',
+      summary: 'summary',
+    };
+    const targetLabel = targetLabels[target] ?? target;
+
+    const enhancedPrompt = [
+      `Goal: ${task}`,
+      `Target artifact: ${targetLabel}`,
+      'Audience: infer the likely reviewers and keep the output demo-ready.',
+      'Structure: define sections, narrative order, expected components, and acceptance criteria before generation.',
+      'Style: professional, coherent, concise, visually presentable, and suitable for Agnes Agent Workspace preview.',
+      'Constraints: preserve the user intent, do not invent unavailable facts, mark assumptions clearly, and include follow-up suggestions.',
+      'Output requirements: produce a complete artifact with enough detail for tool execution and preview.',
+    ].join('\n');
+
+    return {
+      originalPrompt: task,
+      enhancedPrompt,
+      target,
+      rationale: [
+        'Expanded the raw request into a structured production brief before generation.',
+        'Added audience, structure, style, constraints, and output requirements.',
+        'Prevents direct pass-through of the original user wording to downstream generation tools.',
+      ],
+    };
+  }
+
   const enhancedPrompt = [
     `Goal: ${task}`,
     `Medium: ${target === 'media' ? 'high-quality image or video AIGC' : target}`,
@@ -51,7 +84,9 @@ export const promptEnhancerTool: ToolDefinition = {
             {
               role: 'system',
               content:
-                'You are an AIGC prompt engineer. Rewrite the user request into a production-ready image/video generation prompt. Include subject, scene, style, composition, camera, lighting, quality constraints, and negative constraints. Output only the optimized prompt text.',
+                target === 'media'
+                  ? 'You are an AIGC prompt engineer. Rewrite the user request into a production-ready image/video generation prompt. Include subject, scene, style, composition, camera, lighting, quality constraints, and negative constraints. Output only the optimized prompt text.'
+                  : 'You are the prompt optimizer inside Agnes Agent Workspace. Rewrite the raw user request into a structured production brief before any generation tool runs. Include goal, audience, artifact structure, style constraints, factual boundaries, acceptance criteria, and preview requirements. Output only the optimized brief text.',
             },
             {
               role: 'user',

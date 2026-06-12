@@ -48,6 +48,28 @@ export interface LoopCheckpoint {
   updatedAt: string;
 }
 
+export type AgentLoopStage =
+  | 'perceive'
+  | 'route'
+  | 'plan'
+  | 'act'
+  | 'observe'
+  | 'reflect'
+  | 'persist'
+  | 'resume'
+  | 'stop';
+
+export type AgentLoopStatus = 'started' | 'completed' | 'failed' | 'skipped';
+
+export interface AgentLoopEvent {
+  id: string;
+  stage: AgentLoopStage;
+  status: AgentLoopStatus;
+  message: string;
+  timestamp: string;
+  data?: Record<string, unknown>;
+}
+
 /** User-submitted task */
 export interface AgentTask {
   id: string;
@@ -113,6 +135,7 @@ export interface AgentContext {
   routeDecision?: RouteDecision;
   modelSnapshot?: ModelSnapshot;
   loopCheckpoint?: LoopCheckpoint;
+  loopEvents: AgentLoopEvent[];
   plan: AgentPlan | null;
   toolCalls: ToolCallRecord[];
   stepOutputs: Record<string, unknown>;
@@ -154,6 +177,7 @@ export interface ToolExecutionResult {
 
 /** Observability event for execution trace UI */
 export type TraceEventType =
+  | 'loop_event'
   | 'route'
   | 'plan'
   | 'checkpoint'

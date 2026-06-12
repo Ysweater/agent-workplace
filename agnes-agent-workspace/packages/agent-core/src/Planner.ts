@@ -31,6 +31,12 @@ interface LlmPlanStep {
 const PLAN_TEMPLATES: Record<AgentTaskType, StepTemplate[]> = {
   research: [
     {
+      title: 'Optimize research prompt',
+      toolName: 'prompt_enhancer',
+      reason: 'Expand the raw request into a structured research brief before report generation',
+      expectedOutput: 'Optimized research brief with scope, style, structure, and constraints',
+    },
+    {
       title: 'Search the web',
       toolName: 'web_search',
       reason: 'Gather raw information and sources for the research topic',
@@ -57,6 +63,12 @@ const PLAN_TEMPLATES: Record<AgentTaskType, StepTemplate[]> = {
   ],
   website: [
     {
+      title: 'Optimize website prompt',
+      toolName: 'prompt_enhancer',
+      reason: 'Expand the raw site request into a build-ready brief before generation',
+      expectedOutput: 'Optimized site brief with audience, structure, visual style, and constraints',
+    },
+    {
       title: 'Plan website or game',
       toolName: 'website_builder',
       reason: 'Design structure for the requested website or mini-game',
@@ -70,6 +82,12 @@ const PLAN_TEMPLATES: Record<AgentTaskType, StepTemplate[]> = {
     },
   ],
   writing: [
+    {
+      title: 'Optimize writing prompt',
+      toolName: 'prompt_enhancer',
+      reason: 'Expand the raw writing request into a structured content brief',
+      expectedOutput: 'Optimized writing brief with audience, tone, structure, and constraints',
+    },
     {
       title: 'Draft structured content',
       toolName: 'document_generator',
@@ -91,6 +109,12 @@ const PLAN_TEMPLATES: Record<AgentTaskType, StepTemplate[]> = {
   ],
   analysis: [
     {
+      title: 'Optimize analysis prompt',
+      toolName: 'prompt_enhancer',
+      reason: 'Expand the raw analysis request into a decision-ready analysis brief',
+      expectedOutput: 'Optimized analysis brief with scope, criteria, assumptions, and output format',
+    },
+    {
       title: 'Analyze provided material',
       toolName: 'document_generator',
       reason: 'Extract findings, patterns, and recommendations from the task context',
@@ -110,6 +134,12 @@ const PLAN_TEMPLATES: Record<AgentTaskType, StepTemplate[]> = {
     },
   ],
   presentation: [
+    {
+      title: 'Optimize presentation prompt',
+      toolName: 'prompt_enhancer',
+      reason: 'Expand the raw deck request into a slide-ready narrative brief',
+      expectedOutput: 'Optimized presentation brief with audience, story arc, style, and slide constraints',
+    },
     {
       title: 'Generate presentation deck',
       toolName: 'presentation_generator',
@@ -513,22 +543,24 @@ export function normalizePlanForTaskType(
   steps: AgentStep[],
   toolNames: Set<string>,
 ): AgentStep[] {
+  let normalizedSteps = ensurePromptEnhancement(taskType, steps, toolNames);
+
   if (['writing', 'analysis'].includes(taskType)) {
-    const hasDocumentGenerator = steps.some((s) => s.toolName === 'document_generator');
+    const hasDocumentGenerator = normalizedSteps.some((s) => s.toolName === 'document_generator');
     if (!hasDocumentGenerator && toolNames.has('document_generator')) {
       return PLAN_TEMPLATES[taskType].filter((t) => toolNames.has(t.toolName)).map(toStep);
     }
   }
 
   if (taskType === 'presentation') {
-    const hasPresentationGenerator = steps.some((s) => s.toolName === 'presentation_generator');
+    const hasPresentationGenerator = normalizedSteps.some((s) => s.toolName === 'presentation_generator');
     if (!hasPresentationGenerator && toolNames.has('presentation_generator')) {
       return PLAN_TEMPLATES.presentation.filter((t) => toolNames.has(t.toolName)).map(toStep);
     }
   }
 
   if (taskType === 'media') {
-    const names = new Set(steps.map((s) => s.toolName));
+    const names = new Set(normalizedSteps.map((s) => s.toolName));
     if (
       (!names.has('prompt_enhancer') || (!names.has('image_generator') && !names.has('video_generator'))) &&
       toolNames.has('prompt_enhancer')
@@ -537,10 +569,17 @@ export function normalizePlanForTaskType(
     }
   }
 
-  if (taskType !== 'research') return steps;
+  if (taskType === 'website') {
+    const hasWebsiteBuilder = normalizedSteps.some((s) => s.toolName === 'website_builder');
+    if (!hasWebsiteBuilder && toolNames.has('website_builder')) {
+      return PLAN_TEMPLATES.website.filter((t) => toolNames.has(t.toolName)).map(toStep);
+    }
+  }
 
-  const names = new Set(steps.map((s) => s.toolName));
-  const next = [...steps];
+  if (taskType !== 'research') return normalizedSteps;
+
+  const names = new Set(normalizedSteps.map((s) => s.toolName));
+  const next = [...normalizedSteps];
 
   if (!names.has('html_export') && toolNames.has('html_export')) {
     next.push(
@@ -571,4 +610,24 @@ export function normalizePlanForTaskType(
   }
 
   return next;
+}
+
+function ensurePromptEnhancement(
+  taskType: AgentTaskType,
+  steps: AgentStep[],
+  toolNames: Set<string>,
+): AgentStep[] {
+  if (taskType === 'summary' || !toolNames.has('prompt_enhancer')) return steps;
+  if (steps.some((step) => step.toolName === 'prompt_enhancer')) return steps;
+
+  const template = PLAN_TEMPLATES[taskType].find((step) => step.toolName === 'prompt_enhancer');
+  if (!template) return steps;
+
+  return [
+    toStep(template, 0),
+    ...steps.map((step, index) => ({
+      ...step,
+      id: `step-${index + 2}`,
+    })),
+  ];
 }

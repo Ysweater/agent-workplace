@@ -7,6 +7,7 @@ This note explains which parts of Agnes Agent Workspace are inspired by Claude C
 Agnes does not copy Claude Code source code. The borrowed ideas are architectural:
 
 - QueryEngine-style execution loop: `AgentRuntime -> Planner -> Executor -> Tool`.
+- Explicit Loop recorder: `AgentLoop` records perceive, route, plan, act, observe, reflect, persist, resume, and stop.
 - Tool registry boundary: only registered tool names can be planned and executed.
 - Context accumulation: each run records task, plan, tool calls, artifacts, trace events, and final result.
 - Permission and degradation boundary: model keys stay on the server; missing providers degrade visibly.
@@ -38,15 +39,19 @@ This keeps product workflows extensible: adding a new tool should not require re
 
 Agnes uses a loop-engineering model similar in spirit to agent execution loops:
 
-1. Route: the main agent classifies the task into a workflow intent.
-2. Plan: the planner creates a small registered-tool sequence.
-3. Execute: the executor advances one node at a time.
-4. Observe: each node writes tool calls, artifacts, transitions, and trace events.
-5. Checkpoint: the runtime stores completed and pending node ids.
-6. Resume: failed or interrupted runs can restart from saved context and skip completed nodes.
-7. Continue: follow-up user input keeps the same session id and passes recent conversation into planning and tools.
+1. Perceive: load user input, session memory, and the model snapshot.
+2. Route: the main agent classifies the task into a workflow intent.
+3. Plan: the planner creates a registered-tool sequence and normalizes prompt optimization nodes.
+4. Act: the executor advances one node at a time.
+5. Observe: each node writes tool calls, artifacts, transitions, and trace events.
+6. Reflect: the runtime marks the step as satisfied or resumable on failure.
+7. Persist: the runtime stores completed and pending node ids.
+8. Resume: failed or interrupted runs can restart from saved context and skip completed nodes.
+9. Continue: follow-up user input keeps the same session id and passes recent conversation into planning and tools.
 
 This is comparable to a lightweight LangGraph-style workflow: nodes are tools, edges are the planned order, state is the `AgentContext`, and checkpoint data provides resumability.
+
+The detailed Claude Code loop reading notes and Agnes code mapping are in `docs/cc-loop-analysis.md`.
 
 ## Persistence And Cloud Readiness
 

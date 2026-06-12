@@ -6,17 +6,18 @@ This project does not copy Claude Code source code. It independently implements 
 
 | File | Agent technique | Similar product / architecture | How it is implemented here |
 | --- | --- | --- | --- |
+| `packages/agent-core/src/AgentLoop.ts` | Explicit loop recorder | Claude Code QueryEngine loop / Ralph Loop / LangGraph state events | Records perceive, route, plan, act, observe, reflect, persist, resume, and stop events into `context.loopEvents` and `trace[type="loop_event"]`. |
 | `packages/agent-core/src/AgentRuntime.ts` | Main agent orchestration, run entry, loop checkpoint | Claude Code QueryEngine / LangGraph graph runner | Converts user input into a task, receives route and model snapshots, creates a plan, drives the executor, and records loop state. |
 | `packages/agent-core/src/Planner.ts` | Intent classification, tool-chain planning, fallback plan | Claude Code planner / LangGraph conditional edge | Builds plans for research, website, presentation, media, writing, analysis, and summary tasks. |
-| `packages/agent-core/src/Executor.ts` | Tool execution loop, node input adaptation, step status updates | Claude Code tool-use loop / LangGraph node execution | Executes plan steps in order, passes upstream outputs to downstream tools, and writes step outputs, tool calls, and artifacts. |
-| `packages/agent-core/src/ContextManager.ts` | Runtime context, trace source, checkpoint state | Claude Code Context / LangGraph state | Stores task, plan, tool calls, artifacts, route decision, model snapshot, and loop checkpoint. |
+| `packages/agent-core/src/Executor.ts` | Tool execution loop, prompt-optimized node input adaptation, step status updates | Claude Code tool-use loop / LangGraph node execution | Executes plan steps in order, passes upstream outputs to downstream tools, writes step outputs/tool calls/artifacts, and ensures generation tools consume `prompt_enhancer.enhancedPrompt`. |
+| `packages/agent-core/src/ContextManager.ts` | Runtime context, trace source, checkpoint state | Claude Code Context / LangGraph state | Stores task, plan, tool calls, artifacts, route decision, model snapshot, loop events, and loop checkpoint. |
 | `packages/agent-core/src/ToolRegistry.ts` | Tool allowlist and capability registry | Claude Code tools abstraction | Tools must be registered before Planner / Executor can use them. Unknown tools are skipped with warnings. |
 | `apps/server/src/services/workflowRouter.service.ts` | Main-agent routing strategy | LangGraph router / Copilot agent router | Uses explicit task type and keyword signals to select a workflow and produce an explainable routeDecision. |
 | `apps/server/src/services/checkpoint.service.ts` | Redis / memory checkpoint | LangGraph checkpoint saver | Saves run status, current node, completed nodes, and pending nodes. `REDIS_URL` enables cloud Redis storage. |
 | `apps/server/src/services/modelProvider.service.ts` | Multi-model provider, model snapshot, model-switch isolation | Codex / Claude model settings | Captures a ModelRunSnapshot per run. Switching model in UI affects the next run, not the current one. |
 | `apps/server/src/controllers/agent.controller.ts` | Immediate response plus background execution | Claude Code task runner / Codex background task | `/run-async` returns immediateReply and runId first, then runs workflow in the background while the frontend polls status. |
 | `apps/server/src/lib/agentSetup.ts` | Runtime assembly and service injection | Hardness dependency boundary | Injects LLM, search, site, and media services at the server layer. `agent-core` does not depend on HTTP or cloud services. |
-| `packages/tools/src/promptEnhancerTool.ts` | Prompt enhancement before AIGC | Midjourney / Runway prompt assistant | Expands the raw user idea into subject, composition, style, lighting, and constraints before generation. |
+| `packages/tools/src/promptEnhancerTool.ts` | Prompt optimization before all generation workflows | Claude Code planning discipline / Midjourney / Runway prompt assistant | Expands raw user wording into a structured production brief for research, website, writing, analysis, presentation, image, and video generation. |
 | `packages/tools/src/mediaGeneratorTools.ts` | Image / video generation node | AIGC workflow node | Consumes enhanced prompts and calls media generation services, with explainable fallback when services are unavailable. |
 | `packages/tools/src/presentationGeneratorTool.ts` | Structured slide generation | Gamma / Tome / Manus artifact | Generates slide JSON, Markdown outline, and HTML deck preview. |
 | `packages/tools/src/webSearchTool.ts` | Search abstraction | Perplexity / Deep Research | Returns numbered sources for downstream report generation. |
@@ -29,11 +30,14 @@ This project does not copy Claude Code source code. It independently implements 
 
 The runtime treats every complex request as an observable and recoverable agent loop:
 
-1. `Route`: the main agent detects intent and selects a workflow.
-2. `Plan`: the planner creates executable nodes.
-3. `Execute`: the executor calls tools node by node.
-4. `Observe`: the context manager records steps, tool calls, artifacts, and trace events.
-5. `Recover`: the checkpoint stores current, completed, and pending nodes for resume.
+1. `Perceive`: load user input, session memory, and model snapshot.
+2. `Route`: the main agent detects intent and selects a workflow.
+3. `Plan`: the planner creates executable nodes and normalizes required prompt optimization steps.
+4. `Act`: the executor calls tools node by node.
+5. `Observe`: the context manager records steps, tool calls, artifacts, and trace events.
+6. `Reflect`: the runtime marks each step as satisfied or resumable on failure.
+7. `Persist`: the checkpoint stores current, completed, and pending nodes for resume.
+8. `Resume/Stop`: failed runs can continue from saved state; completed runs close the loop.
 
 This is not a React rendering loop. It is an agent task loop closer to Claude Code QueryEngine and LangGraph graph state.
 
